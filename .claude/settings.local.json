@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__datagrip__list_database_connections",
+      "mcp__datagrip__list_database_schemas",
+      "mcp__datagrip__list_schema_object_kinds",
+      "mcp__datagrip__list_schema_objects",
+      "mcp__datagrip__execute_sql_query",
+      "mcp__Context7__query-docs",
+      "mcp__Context7__resolve-library-id",
+      "mcp__datagrip__get_database_object_description",
+      "mcp__datagrip__preview_table_data",
+      "Bash(git init:*)",
+      "Bash(git config:*)"
+    ]
+  }
+}
