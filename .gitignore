@@ -12,5 +12,5 @@
 .vscode/extensions.json
 
 # 项目特定
-plan_docs/
-标注结果/
+# plan_docs/
+# 标注结果/
