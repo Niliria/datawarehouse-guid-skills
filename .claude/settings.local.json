@@ -11,7 +11,9 @@
       "mcp__datagrip__get_database_object_description",
       "mcp__datagrip__preview_table_data",
       "Bash(git init:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
