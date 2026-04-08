@@ -10,7 +10,3 @@
 .vscode/launch.json
 .vscode/tasks.json
 .vscode/extensions.json
-
-# 项目特定
-plan_docs/
-标注结果/
