@@ -6,11 +6,11 @@ Reads step3/step4 CSV outputs and generates a cross-tab xlsx file.
 
 Usage:
     python write_bus_matrix.py \
-        --table-profile output/step3/dwm_s3_table_profile.csv \
-        --subject-area  output/step3/dwm_s3_subject_area.csv \
-        --fact-dim-ref  output/step4/dwm_s4_fact_dim_ref.csv \
-        --dim-registry  output/step4/dwm_s4_dim_registry.csv \
-        --output        output/step4/dwm_s4_bus_matrix.xlsx \
+        --table-profile output/dwm-bus-matrix/step3/dwm_s3_table_profile.csv \
+        --subject-area  output/dwm-bus-matrix/step3/dwm_s3_subject_area.csv \
+        --fact-dim-ref  output/dwm-bus-matrix/step4/dwm_s4_fact_dim_ref.csv \
+        --dim-registry  output/dwm-bus-matrix/step4/dwm_s4_dim_registry.csv \
+        --output        output/dwm-bus-matrix/step4/dwm_s4_bus_matrix.xlsx \
         --version       v1.0
 
 Requires: openpyxl (pip install openpyxl)
@@ -143,8 +143,6 @@ def write_xlsx(
 
     # -- Data rows --
     data_start_row = 2
-    prev_sa = None
-    sa_start_row = data_start_row
 
     for row_idx, row_data in enumerate(rows, data_start_row):
         sa_code = row_data["subject_area_code"]
@@ -152,7 +150,7 @@ def write_xlsx(
         bp_name = row_data["bp_standard_name"]
         fact_type = row_data["fact_type"]
 
-        # Column A: subject area
+        # Column A: subject area (every row)
         cell_a = ws.cell(row=row_idx, column=1, value=f"{sa_name}({sa_code})")
         cell_a.alignment = Alignment(vertical="center")
         cell_a.border = thin_border
@@ -177,23 +175,7 @@ def write_xlsx(
             else:
                 cell.font = dash_font
 
-        # Track subject area grouping for merge
-        if sa_code != prev_sa:
-            if prev_sa is not None and sa_start_row < row_idx:
-                ws.merge_cells(
-                    start_row=sa_start_row, start_column=1,
-                    end_row=row_idx - 1, end_column=1,
-                )
-            sa_start_row = row_idx
-            prev_sa = sa_code
-
-    # Merge last subject area group
     last_data_row = data_start_row + len(rows) - 1
-    if prev_sa is not None and sa_start_row < last_data_row:
-        ws.merge_cells(
-            start_row=sa_start_row, start_column=1,
-            end_row=last_data_row, end_column=1,
-        )
 
     # -- Metadata footer --
     meta_row = last_data_row + 2 if rows else 3
@@ -227,8 +209,8 @@ def main():
     parser.add_argument("--subject-area", required=True, help="Path to dwm_s3_subject_area.csv")
     parser.add_argument("--fact-dim-ref", required=True, help="Path to dwm_s4_fact_dim_ref.csv")
     parser.add_argument("--dim-registry", required=True, help="Path to dwm_s4_dim_registry.csv")
-    parser.add_argument("--output", "-o", default="output/step4/dwm_s4_bus_matrix.xlsx",
-                        help="Output xlsx path (default: output/step4/dwm_s4_bus_matrix.xlsx)")
+    parser.add_argument("--output", "-o", default="output/dwm-bus-matrix/step4/dwm_s4_bus_matrix.xlsx",
+                        help="Output xlsx path (default: output/dwm-bus-matrix/step4/dwm_s4_bus_matrix.xlsx)")
     parser.add_argument("--version", "-v", default="v1.0", help="Matrix version (default: v1.0)")
     parser.add_argument("--status", "-s", default="draft", help="Matrix status (default: draft)")
     args = parser.parse_args()

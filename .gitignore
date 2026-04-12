@@ -10,4 +10,6 @@
 .vscode/launch.json
 .vscode/tasks.json
 .vscode/extensions.json
+.venv
+__pycache__/
 plan_docs/

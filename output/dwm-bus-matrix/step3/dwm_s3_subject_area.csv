@@ -1,0 +1,3 @@
+﻿subject_area_code,subject_area_name_cn,subject_area_name_en,subject_area_desc,business_scope,owner,definition_basis,updated_at
+SEV,供应商评价域,Supplier Evaluation,覆盖供应商履约评价全流程：参评登记、商务评分、技术评分、综合评级,"供应商参评登记,商务评分,技术评分,综合评级,评分链接管理",,"自底向上:19张表中17张评分表+1张参评清单+1张链接管理均围绕供应商评价;自顶向下:对照供应商管理价值链,评价为独立环节",2026-04-13
+HRM,人力资源域,Human Resource Management,覆盖人员组织架构基础数据：员工信息、部门层级、在职状态,"员工信息同步,组织架构维护",,"自底向上:ods_itf_po_employee_df为PO系统人员接口数据,独立于评价业务;自顶向下:人力资源为独立职能域",2026-04-13

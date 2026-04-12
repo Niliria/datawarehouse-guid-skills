@@ -115,27 +115,28 @@ Read `references/step5-matrix-validation.md` for validation procedures, feedback
 
 ## 输出约定
 
-每步执行完成后，将产出物以 CSV 文件写入项目 `output/stepN/` 目录：
+每步执行完成后，将产出物以 CSV 文件写入项目 `output/dwm-bus-matrix/stepN/` 目录：
 
 ```
 output/
-├── step1/
-│   ├── dwm_s1_source_registry.csv
-│   ├── dwm_s1_ods_inventory.csv
-│   └── dwm_s1_field_registry.csv
-├── step2/
-│   └── dwm_s2_field_tag.csv
-├── step3/
-│   ├── dwm_s3_table_profile.csv
-│   └── dwm_s3_subject_area.csv
-├── step4/
-│   ├── dwm_s4_fact_dim_ref.csv
-│   ├── dwm_s4_fact_metric.csv
-│   ├── dwm_s4_dim_registry.csv
-│   └── dwm_s4_bus_matrix.xlsx
-└── step5/
-    ├── dwm_s5_matrix_check.csv
-    └── dwm_s5_priority_roadmap.csv
+└── dwm-bus-matrix/
+    ├── step1/
+    │   ├── dwm_s1_source_registry.csv
+    │   ├── dwm_s1_ods_inventory.csv
+    │   └── dwm_s1_field_registry.csv
+    ├── step2/
+    │   └── dwm_s2_field_tag.csv
+    ├── step3/
+    │   ├── dwm_s3_table_profile.csv
+    │   └── dwm_s3_subject_area.csv
+    ├── step4/
+    │   ├── dwm_s4_fact_dim_ref.csv
+    │   ├── dwm_s4_fact_metric.csv
+    │   ├── dwm_s4_dim_registry.csv
+    │   └── dwm_s4_bus_matrix.xlsx
+    └── step5/
+        ├── dwm_s5_matrix_check.csv
+        └── dwm_s5_priority_roadmap.csv
 ```
 
 ### CSV 格式要求
@@ -152,7 +153,7 @@ output/
 
 ```bash
 echo '[{"source_code":"my001","source_type":"MySQL","table_count":45}]' \
-  | python .claude/skills/dwm-bus-matrix/scripts/write_csv.py output/step1/dwm_s1_source_registry.csv
+  | python .claude/skills/dwm-bus-matrix/scripts/write_csv.py output/dwm-bus-matrix/step1/dwm_s1_source_registry.csv
 ```
 
 ### CSV 读取方式
@@ -161,26 +162,50 @@ echo '[{"source_code":"my001","source_type":"MySQL","table_count":45}]' \
 
 ```bash
 # 读取第一步全部字段清单
-python .claude/skills/dwm-bus-matrix/scripts/read_csv.py output/step1/dwm_s1_field_registry.csv
+python .claude/skills/dwm-bus-matrix/scripts/read_csv.py output/dwm-bus-matrix/step1/dwm_s1_field_registry.csv
 
 # 第二步读取第一步的外键字段（按条件过滤）
-python .claude/skills/dwm-bus-matrix/scripts/read_csv.py output/step1/dwm_s1_field_registry.csv \
+python .claude/skills/dwm-bus-matrix/scripts/read_csv.py output/dwm-bus-matrix/step1/dwm_s1_field_registry.csv \
   --where "constraint_type=FK" --select "src_table_name,src_column_name,ref_table,ref_column"
 
 # 第三步读取第二步的外键标注
-python .claude/skills/dwm-bus-matrix/scripts/read_csv.py output/step2/dwm_s2_field_tag.csv \
+python .claude/skills/dwm-bus-matrix/scripts/read_csv.py output/dwm-bus-matrix/step2/dwm_s2_field_tag.csv \
   --where "core_tag=外键" --where "review_status=approved"
 
 # 统计数量
-python .claude/skills/dwm-bus-matrix/scripts/read_csv.py output/step2/dwm_s2_field_tag.csv \
+python .claude/skills/dwm-bus-matrix/scripts/read_csv.py output/dwm-bus-matrix/step2/dwm_s2_field_tag.csv \
   --where "core_tag=外键" --count
 
 # 查看某列的所有取值
-python .claude/skills/dwm-bus-matrix/scripts/read_csv.py output/step2/dwm_s2_field_tag.csv \
+python .claude/skills/dwm-bus-matrix/scripts/read_csv.py output/dwm-bus-matrix/step2/dwm_s2_field_tag.csv \
   --distinct "core_tag"
 ```
 
 两个脚本自动处理 UTF-8 BOM，数据格式统一为 JSON（写入 JSON→CSV，读取 CSV→JSON）。
+
+### 批量处理脚本
+
+当数据量大（>50 行）需编写 Python 脚本批量处理时，通过 `sys.path` 导入现有工具函数，禁止重写 CSV 读写逻辑：
+
+```python
+import sys, os
+sys.path.insert(0, ".claude/skills/dwm-bus-matrix/scripts")
+from read_csv import read_csv
+from write_csv import write_csv
+
+# 读取前步产出
+fields = read_csv("output/dwm-bus-matrix/step1/dwm_s1_field_registry.csv")
+
+# 处理业务逻辑...
+results = [...]
+
+# 写入当步产出
+write_csv("output/dwm-bus-matrix/step2/dwm_s2_field_tag.csv", results)
+```
+
+规则：
+- 禁止在批量脚本中直接使用 `csv.DictReader` / `csv.DictWriter`，统一走 `read_csv()` / `write_csv()` 确保 BOM 编码、空值处理一致
+- 批量脚本从项目根目录执行（`python script.py`）
 
 ### 总线矩阵生成方式
 
@@ -188,11 +213,11 @@ python .claude/skills/dwm-bus-matrix/scripts/read_csv.py output/step2/dwm_s2_fie
 
 ```bash
 python .claude/skills/dwm-bus-matrix/scripts/write_bus_matrix.py \
-  --table-profile output/step3/dwm_s3_table_profile.csv \
-  --subject-area  output/step3/dwm_s3_subject_area.csv \
-  --fact-dim-ref  output/step4/dwm_s4_fact_dim_ref.csv \
-  --dim-registry  output/step4/dwm_s4_dim_registry.csv \
-  --output        output/step4/dwm_s4_bus_matrix.xlsx \
+  --table-profile output/dwm-bus-matrix/step3/dwm_s3_table_profile.csv \
+  --subject-area  output/dwm-bus-matrix/step3/dwm_s3_subject_area.csv \
+  --fact-dim-ref  output/dwm-bus-matrix/step4/dwm_s4_fact_dim_ref.csv \
+  --dim-registry  output/dwm-bus-matrix/step4/dwm_s4_dim_registry.csv \
+  --output        output/dwm-bus-matrix/step4/dwm_s4_bus_matrix.xlsx \
   --version v1.0
 ```
 
@@ -207,7 +232,7 @@ python .claude/skills/dwm-bus-matrix/scripts/write_bus_matrix.py \
 ## 输出格式规范
 
 - **命名规范**：`dwm_s{步骤号}_{语义英文名}`
-- **结构化产出**：CSV 文件落盘到 `output/stepN/`
+- **结构化产出**：CSV 文件落盘到 `output/dwm-bus-matrix/stepN/`
 - **矩阵类产出**：Excel 表格（`.xlsx`），通过 `version` + `status` 管理生命周期
 
 ## 详细规格

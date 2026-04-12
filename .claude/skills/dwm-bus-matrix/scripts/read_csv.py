@@ -4,22 +4,22 @@ CSV reader for dwm-bus-matrix skill.
 
 Usage:
     # Read all rows
-    python read_csv.py output/step1/dwm_s1_source_registry.csv
+    python read_csv.py output/dwm-bus-matrix/step1/dwm_s1_source_registry.csv
 
     # Filter by column value
-    python read_csv.py output/step1/dwm_s1_field_registry.csv --where "constraint_type=PK"
+    python read_csv.py output/dwm-bus-matrix/step1/dwm_s1_field_registry.csv --where "constraint_type=PK"
 
     # Multiple filters (AND)
-    python read_csv.py output/step2/dwm_s2_field_tag.csv --where "core_tag=外键" --where "review_status=approved"
+    python read_csv.py output/dwm-bus-matrix/step2/dwm_s2_field_tag.csv --where "core_tag=外键" --where "review_status=approved"
 
     # Select specific columns
-    python read_csv.py output/step2/dwm_s2_field_tag.csv --select "ods_table_name,col_name,core_tag"
+    python read_csv.py output/dwm-bus-matrix/step2/dwm_s2_field_tag.csv --select "ods_table_name,col_name,core_tag"
 
     # Count rows
-    python read_csv.py output/step2/dwm_s2_field_tag.csv --where "core_tag=外键" --count
+    python read_csv.py output/dwm-bus-matrix/step2/dwm_s2_field_tag.csv --where "core_tag=外键" --count
 
     # Distinct values of a column
-    python read_csv.py output/step2/dwm_s2_field_tag.csv --distinct "core_tag"
+    python read_csv.py output/dwm-bus-matrix/step2/dwm_s2_field_tag.csv --distinct "core_tag"
 """
 
 import csv

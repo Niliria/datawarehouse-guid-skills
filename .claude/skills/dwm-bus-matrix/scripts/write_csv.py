@@ -4,13 +4,13 @@ CSV writer for dwm-bus-matrix skill outputs.
 
 Usage:
     # Write from JSON stdin
-    echo '[{"col1":"v1","col2":"v2"}]' | python write_csv.py output/step1/dwm_s1_source_registry.csv
+    echo '[{"col1":"v1","col2":"v2"}]' | python write_csv.py output/dwm-bus-matrix/step1/dwm_s1_source_registry.csv
 
     # Write from JSON file
-    python write_csv.py output/step1/dwm_s1_source_registry.csv --input data.json
+    python write_csv.py output/dwm-bus-matrix/step1/dwm_s1_source_registry.csv --input data.json
 
     # Specify column order (optional, default uses first row's key order)
-    python write_csv.py output/step1/dwm_s1_source_registry.csv --columns "source_code,source_type,conn_info"
+    python write_csv.py output/dwm-bus-matrix/step1/dwm_s1_source_registry.csv --columns "source_code,source_type,conn_info"
 """
 
 import csv
