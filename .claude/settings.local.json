@@ -15,7 +15,9 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git ls-tree:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(python .claude/skills/dwm-bus-matrix/scripts/write_csv.py output/step1/dwm_s1_source_registry.csv)",
+      "mcp__datagrip__test_database_connection"
     ]
   }
 }

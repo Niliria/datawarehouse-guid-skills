@@ -1,9 +1,19 @@
-# 第四步：维度与事实确定 + 总线矩阵构建
+# 第四步：事实与维度确定 + 总线矩阵草稿
 
-完成 Kimball 四步法的后两步——确定维度、确定事实，并填充总线矩阵得到企业级建模蓝图。
+## 0. 本步定位
 
-- "确定维度"：提取外键 → 收敛一致性维度 → 交叉填充，不应拆开
-- "确定事实"：确认事实表类型 → 度量归属 → 派生事实，必须在矩阵填充前完成
+完成 Kimball 四步法的后两步——先确定事实（度量），再确定维度，最后填充总线矩阵草稿。
+
+**为什么先事实后维度？** 事实表类型决定度量的可加性校验规则（事务表度量通常可加，周期快照表度量通常半可加）。不先定类型，度量归属无法校验。
+
+本步产出 4 张**工作底稿**，第五步将其合成为最终交付物（DWD 事实表清单、DIM 维度表清单、总线矩阵发布版、主题域清单）。
+
+| 工作底稿 | 回答什么问题 | 下游消费 |
+|----------|------------|---------|
+| `dwm_s4_fact_metric` | 每张事实表有哪些度量、怎么聚合？ | → S5 合成 DWD 事实表清单 |
+| `dwm_s4_fact_dim_ref` | 每张事实表关联哪些维度？ | → S5 合成 DWD 事实表清单 + 总线矩阵 |
+| `dwm_s4_dim_registry` | 哪些维度跨事实表共享、需建 DIM 表？ | → S5 合成 DIM 维度表清单 + 总线矩阵 |
+| `dwm_bus_matrix` | 业务过程 × 维度的全景关联 | → S5 验证后发布 |
 
 ---
 
@@ -21,44 +31,21 @@
 
 ## 2. 实施步骤
 
-### 2.1 提取维度外键
-
-1. 硬门禁：`core_tag IN ('技术属性','技术时间')` 全部剔除，不得进入维度候选池
-2. 对每个业务过程从 `dwm_s2_field_tag` 提取 `core_tag='外键'` 字段列表，通过 `ref_table`/`ref_column` 关联到维度候选表
-3. 提取同表内 `core_tag='退化维度'` 字段
-4. 提取同表内 `core_tag='低基数离散属性候选'` 字段
-5. 补充"是否必选维度"与"缺失容忍策略"（如匿名用户）
-6. 产出 `dwm_s4_fact_dim_ref`
-
-### 2.2 确定事实
-
-#### 2.2.1 事实表类型分类
+### 2.1 确定事实表类型
 
 对每个业务过程确认事实表类型：
 
-| 类型 | 判定依据 | 典型场景 |
-|------|---------|---------| 
-| 事务事实表 | 一行一笔业务事件，不可变 | 下单、支付、退款 |
-| 周期快照事实表 | 按固定周期截面记录状态 | 日库存、月账户余额 |
-| 累积快照事实表 | 一行跟踪业务全生命周期，多个里程碑时间 | 订单履约 |
+| 类型 | fact_type 编码 | 判定依据 | 典型场景 |
+|------|---------------|---------|---------|
+| 事务事实表 | `transaction` | 一行一笔业务事件，不可变 | 下单、支付、退款 |
+| 周期快照事实表 | `periodic_snapshot` | 按固定周期截面记录状态 | 日库存、月账户余额 |
+| 累积快照事实表 | `accumulating_snapshot` | 一行跟踪业务全生命周期，多个里程碑时间 | 订单履约 |
 
 判定规则：
 1. 有明确业务事件时间 + 事件后行不变 → 事务事实表
 2. 无明确事件、按周期截面 + 半可加度量 → 周期快照事实表
 3. 一行有多个里程碑时间、行随流程推进更新 → 累积快照事实表
-4. 无度量但有业务行为记录 → 无事实事实表（factless）
-
-#### 2.2.2 度量归属确认
-
-1. 将 `dwm_s2_field_tag WHERE core_tag IN ('可加度量','半可加度量','不可加度量')` 逐个归属到对应事实表
-2. 确认每个度量的 `agg_suggest` 与事实表类型匹配：
-   - 事务事实表：度量通常可加
-   - 周期快照表：度量通常半可加
-   - 累积快照表：里程碑间时间差、状态标志为典型度量
-3. 识别派生事实（如 `利润 = 收入 - 成本`），标注计算逻辑，决定存储还是运行时计算
-4. 产出 `dwm_s4_fact_metric`
-
-#### 2.2.3 回写事实表类型
+4. 无度量但有业务行为记录 → 无事实事实表（`factless`）
 
 将 `fact_type`、`fact_type_evidence` 回写到 `dwm_s3_table_profile`：
 
@@ -69,7 +56,30 @@ SET fact_type = 'transaction',
 WHERE ods_table_name = 'my001_order';
 ```
 
-### 2.3 收敛一致性维度
+### 2.2 确定度量
+
+1. 将 `dwm_s2_field_tag WHERE core_tag IN ('可加度量','半可加度量','不可加度量')` 逐个归属到对应事实表
+2. 确认每个度量的 `agg_suggest` 与事实表类型匹配：
+
+| 事实表类型 | 度量特征 |
+|-----------|---------|
+| `transaction` | 度量通常可加（sum） |
+| `periodic_snapshot` | 度量通常半可加（不可跨时间 sum） |
+| `accumulating_snapshot` | 里程碑间时间差、状态标志为典型度量 |
+
+3. 识别派生事实（如 `利润 = 收入 - 成本`），标注计算逻辑，决定存储还是运行时计算
+4. 产出 `dwm_s4_fact_metric`
+
+### 2.3 提取维度引用
+
+1. 硬门禁：`core_tag IN ('技术属性','技术时间')` 全部剔除，不得进入维度候选池
+2. 对每个业务过程从 `dwm_s2_field_tag` 提取 `core_tag='外键'` 字段列表，通过 `ref_table`/`ref_column` 关联到维度候选表
+3. 提取同表内 `core_tag='退化维度'` 字段
+4. 提取同表内 `core_tag='低基数离散属性候选'` 字段
+5. 补充"是否必选维度"与"缺失容忍策略"（如匿名用户）
+6. 产出 `dwm_s4_fact_dim_ref`
+
+### 2.4 收敛一致性维度
 
 1. 汇总所有业务过程外键并去重，得到一致性维度候选列表
 2. 为每个维度键确定唯一维表来源（从 `dwm_s3_table_profile WHERE table_role='dimension'`）
@@ -82,40 +92,19 @@ WHERE ods_table_name = 'my001_order';
    - 同一维度内不同属性可有不同 SCD 类型（如 user_name 用 SCD1，user_level 用 SCD2）；`scd_strategy` 取该维度中最严格的类型，`scd_columns` 按 `类型:字段` 格式分组记录
 6. 产出 `dwm_s4_dim_registry`
 
-### 2.4 填充总线矩阵
+### 2.5 组装总线矩阵草稿
 
 1. 创建矩阵骨架：行=业务过程（按 `dwm_s3_subject_area` 分组），列=一致性维度（`dwm_s4_dim_registry`）
 2. 逐格填充关联：存在关系标 `✓`，可附关系强度
 3. 标记特殊维度：退化维度、低基数离散属性组合维、角色扮演维度
 4. 记录备注：不连接原因或后续补建计划
-5. 产出 `dwm_s4_bus_matrix`（status=draft）
+5. 产出 `dwm_bus_matrix`（status=draft）
 
 ---
 
-## 3. 产出物
+## 3. 产出物（4 张工作底稿）
 
-### 3.1 `dwm_s4_fact_dim_ref`（业务过程-维度引用表）
-
-一行一条引用关系。产出格式：数据库表 / CSV。
-
-| 字段名 | 中文说明 | 是否必填 | 取值/规则 |
-|--------|----------|:--:|-----------|
-| source_code | 数据源编码 | 是 | 关联 `dwm_s1_source_registry` |
-| fact_table | 事实表名 | 是 | 来自 `dwm_s3_table_profile WHERE table_role='fact'` |
-| bp_standard_name | 业务过程标准名 | 是 | 事实表对应业务过程 |
-| dimension_type | 维度类型 | 是 | `外键` / `退化维度` / `低基数离散属性候选` |
-| dimension_column | 维度字段名 | 是 | 字段英文名 |
-| dimension_name | 维度名称 | 条件 | `dimension_type=外键` 时必填 |
-| ref_table | 引用维表名 | 条件 | `dimension_type=外键` 时必填 |
-| ref_column | 引用字段名 | 条件 | `dimension_type=外键` 时必填 |
-| is_mandatory | 是否必选维度 | 是 | `Y` / `N` |
-| missing_tolerance | 缺失容忍策略 | 是 | 如"匿名用户填充 UNKNOWN" |
-| review_status | 审核状态 | 是 | `approved` / `pending` / `rejected` |
-| updated_at | 更新时间 | 是 | 最近修改时间 |
-
-> 主键：`fact_table + dimension_type + dimension_column`
-
-### 3.2 `dwm_s4_fact_metric`（事实表-度量归属表）
+### 3.1 `dwm_s4_fact_metric`（度量归属底稿）
 
 一行一个度量归属。产出格式：数据库表 / CSV。
 
@@ -137,7 +126,28 @@ WHERE ods_table_name = 'my001_order';
 
 > 主键：`fact_table + metric_column`
 
-### 3.3 `dwm_s4_dim_registry`（一致性维度注册表）
+### 3.2 `dwm_s4_fact_dim_ref`（维度引用底稿）
+
+一行一条引用关系。产出格式：数据库表 / CSV。
+
+| 字段名 | 中文说明 | 是否必填 | 取值/规则 |
+|--------|----------|:--:|-----------|
+| source_code | 数据源编码 | 是 | 关联 `dwm_s1_source_registry` |
+| fact_table | 事实表名 | 是 | 来自 `dwm_s3_table_profile WHERE table_role='fact'` |
+| bp_standard_name | 业务过程标准名 | 是 | 事实表对应业务过程 |
+| dimension_type | 维度类型 | 是 | `外键` / `退化维度` / `低基数离散属性候选` |
+| dimension_column | 维度字段名 | 是 | 字段英文名 |
+| dimension_name | 维度名称 | 条件 | `dimension_type=外键` 时必填 |
+| ref_table | 引用维表名 | 条件 | `dimension_type=外键` 时必填 |
+| ref_column | 引用字段名 | 条件 | `dimension_type=外键` 时必填 |
+| is_mandatory | 是否必选维度 | 是 | `Y` / `N` |
+| missing_tolerance | 缺失容忍策略 | 是 | 如"匿名用户填充 UNKNOWN" |
+| review_status | 审核状态 | 是 | `approved` / `pending` / `rejected` |
+| updated_at | 更新时间 | 是 | 最近修改时间 |
+
+> 主键：`fact_table + dimension_type + dimension_column`
+
+### 3.3 `dwm_s4_dim_registry`（一致性维度底稿）
 
 一行一个一致性维度。产出格式：数据库表 / CSV。仅注册需建 DIM 表的维度。
 
@@ -161,7 +171,7 @@ WHERE ods_table_name = 'my001_order';
 
 > 主键：`dimension_key`
 
-### 3.4 `dwm_s4_bus_matrix`（总线矩阵）
+### 3.4 `dwm_bus_matrix`（总线矩阵草稿）
 
 二维矩阵，行=业务过程，列=一致性维度。通过 `version` + `status` 管理生命周期（第四步创建 status=draft，第五步验证通过后更新为 status=published）。
 
@@ -208,9 +218,9 @@ WHERE ext_tags LIKE '%多值/复杂属性%';
 
 ## 4. 验收标准
 
-1. `dwm_s4_fact_dim_ref` 中每个业务过程至少有一个核心分析维度外键
-2. 外键引用目标明确（`ref_table`/`ref_column` 非空）
-3. `dwm_s4_fact_metric` 中每个度量字段已归属，聚合语义与事实表类型匹配
+1. `dwm_s4_fact_metric` 中每个度量字段已归属，聚合语义与事实表类型匹配
+2. `dwm_s4_fact_dim_ref` 中每个业务过程至少有一个核心分析维度外键
+3. 外键引用目标明确（`ref_table`/`ref_column` 非空）
 4. `dwm_s4_dim_registry` 中每个维度键有唯一口径定义，跨事实无冲突
 5. 维度候选池已剔除技术属性/技术时间（占比 = 0）
 6. 每个业务过程有明确事实表类型，已回写 `dwm_s3_table_profile.fact_type`
@@ -221,8 +231,15 @@ WHERE ext_tags LIKE '%多值/复杂属性%';
 
 ## 5. 与下一步衔接
 
-- `dwm_s4_fact_dim_ref` + `dwm_s4_fact_metric` + `dwm_s4_dim_registry` + `dwm_s4_bus_matrix`（draft）→ 第五步矩阵验证
-- `dwm_s4_dim_registry` → DIM 公共维度层建设直接输入
-- `dwm_s4_fact_metric` + `dwm_s4_fact_dim_ref` → DWD 明细事实表建设直接输入
+本步 4 张工作底稿 → 第五步合成为最终交付物：
+
+| 工作底稿 | 第五步消费方式 |
+|----------|--------------|
+| `dwm_s4_fact_metric` + `dwm_s4_fact_dim_ref` | → 合成 `dwm_dwd_fact_spec`（DWD 事实表建设清单） |
+| `dwm_s4_dim_registry` | → 合成 `dwm_dim_table_spec`（DIM 维度表建设清单） |
+| `dwm_bus_matrix`（draft） | → 验证后发布为 published |
+| 以上全部 + `dwm_s3_subject_area` | → 合成 `dwm_subject_area_summary`（主题域清单） |
+
+其他衔接：
 - `dwm_s3_table_profile.fact_type` → DWD 事实表建模与 DWS 汇总策略依据
 - `dwm_s2_field_tag WHERE ext_tags LIKE '%多值/复杂属性%'` → 建设阶段 DWD 扁平化决策输入

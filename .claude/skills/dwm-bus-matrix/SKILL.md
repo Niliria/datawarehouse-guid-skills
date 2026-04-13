@@ -30,35 +30,38 @@ version: 1.0.0
 | 第一步 | 数据源登记 + ODS 盘点 | `dwm_s1_source_registry` / `dwm_s1_ods_inventory` / `dwm_s1_field_registry` | `references/step1-ods-inventory.md` |
 | 第二步 | 逐字段语义标签化 + fact_candidate 初判 | `dwm_s2_field_tag` | `references/step2-field-tagging.md` |
 | 第三步 | 业务过程识别 + 主题域定义 + 粒度声明 | `dwm_s3_table_profile` / `dwm_s3_subject_area` | `references/step3-business-process.md` |
-| 第四步 | 维度与事实确定 + 总线矩阵构建 | `dwm_s4_fact_dim_ref` / `dwm_s4_fact_metric` / `dwm_s4_dim_registry` / `dwm_s4_bus_matrix` | `references/step4-dimension-fact.md` |
-| 第五步 | 矩阵验证 + 优先级发布 | `dwm_s5_matrix_check` / `dwm_s5_priority_roadmap` / 更新 `dwm_s4_bus_matrix` | `references/step5-matrix-validation.md` |
+| 第四步 | 事实与维度确定 + 总线矩阵草稿 | `dwm_s4_fact_metric` / `dwm_s4_fact_dim_ref` / `dwm_s4_dim_registry` / `dwm_bus_matrix`（工作底稿） | `references/step4-dimension-fact.md` |
+| 第五步 | 矩阵验证 + 最终交付物发布 | `dwm_dwd_fact_spec` / `dwm_dim_table_spec` / `dwm_subject_area_summary` / `dwm_s5_matrix_check` / `dwm_s5_priority_roadmap` | `references/step5-matrix-validation.md` |
 
 流程主线：第一步 → 第二步 → 第三步 → 第四步 → 第五步 → 建设阶段（DIM → DWD → DWS → ADS）。
 
-## 12 张产出物一览
+## 15 张产出物一览
 
 所有产出物统一命名 `dwm_s{步骤号}_{语义英文名}`，输出为数据库表或 CSV。
 
-| 步骤 | 产出物 | 说明 |
-|:---:|--------|------|
-| S1 | `dwm_s1_source_registry` | 数据源注册表 |
-| S1 | `dwm_s1_ods_inventory` | ODS 表清单 |
-| S1 | `dwm_s1_field_registry` | 源字段清单 |
-| S2 | `dwm_s2_field_tag` | 字段标注结果 |
-| S3 | `dwm_s3_table_profile` | 表角色画像 |
-| S3 | `dwm_s3_subject_area` | 主题域注册表 |
-| S4 | `dwm_s4_fact_dim_ref` | 事实-维度引用 |
-| S4 | `dwm_s4_fact_metric` | 事实-度量归属 |
-| S4 | `dwm_s4_dim_registry` | 一致性维度注册 |
-| S4 | `dwm_s4_bus_matrix` | 总线矩阵（含 version + status） |
-| S5 | `dwm_s5_matrix_check` | 矩阵验证报告（项目初始化时预创建） |
-| S5 | `dwm_s5_priority_roadmap` | 优先级路线图 |
+| 步骤 | 产出物 | 说明 | 性质 |
+|:---:|--------|------|------|
+| S1 | `dwm_s1_source_registry` | 数据源注册表 | 基础数据 |
+| S1 | `dwm_s1_ods_inventory` | ODS 表清单 | 基础数据 |
+| S1 | `dwm_s1_field_registry` | 源字段清单 | 基础数据 |
+| S2 | `dwm_s2_field_tag` | 字段标注结果 | 基础数据 |
+| S3 | `dwm_s3_table_profile` | 表角色画像 | 基础数据 |
+| S3 | `dwm_s3_subject_area` | 主题域注册表 | 基础数据 |
+| S4 | `dwm_s4_fact_metric` | 度量归属底稿 | 工作底稿 |
+| S4 | `dwm_s4_fact_dim_ref` | 维度引用底稿 | 工作底稿 |
+| S4 | `dwm_s4_dim_registry` | 一致性维度底稿 | 工作底稿 |
+| S4 | `dwm_bus_matrix` | 总线矩阵草稿（含 version + status） | 工作底稿 |
+| S5 | `dwm_dwd_fact_spec` | **DWD 事实表建设清单**（字段级，含 ODS 溯源） | **最终交付物** |
+| S5 | `dwm_dim_table_spec` | **DIM 维度表建设清单**（字段级，含 ODS 溯源） | **最终交付物** |
+| S5 | `dwm_subject_area_summary` | **主题域清单**（含业务过程数与表数统计） | **最终交付物** |
+| S5 | `dwm_s5_matrix_check` | 矩阵验证报告 | 过程产出 |
+| S5 | `dwm_s5_priority_roadmap` | 优先级路线图 | 规划产出 |
 
 ## 执行规则
 
 ### 跨步骤回写约定
 
-后续步骤可修正前步产出（如第三步回填第一步 `subject_area_code`（表级必填，源级仅单主题域回填）、第四步回写第三步 `fact_type`）：
+后续步骤可修正前步产出（如第四步回写第三步 `fact_type`）：
 - 每步验收区分"当步必须完成"与"下游回填后复验"
 - 回写字段当步允许为空，标记为"待回填"
 - 回填完成后须通过原步骤复验检查
@@ -101,25 +104,29 @@ Read `references/step2-field-tagging.md` for the complete decision tree, thresho
 
 Read `references/step3-business-process.md` for degradation strategies, output definitions, and derived queries.
 
-### 第四步：维度与事实确定 + 总线矩阵构建
+### 第四步：事实与维度确定 + 总线矩阵草稿
 
-完成 Kimball 四步法后两步：提取维度外键并收敛一致性维度（含 SCD 策略），确认事实表类型（事务/周期快照/累积快照/无事实）与度量归属，填充总线矩阵。`dwm_s4_dim_registry` 仅注册需建 DIM 表的维度。
+先确认事实表类型（驱动度量归属逻辑），再提取维度外键并收敛一致性维度（含 SCD 策略），最后填充总线矩阵草稿。本步产出 4 张工作底稿，第五步合成为最终交付物。
 
 Read `references/step4-dimension-fact.md` for fact type classification, dimension registry schema, and matrix structure.
 
-### 第五步：矩阵验证与优先级发布
+### 第五步：矩阵验证与最终交付物发布
 
-逐行逐列验证矩阵（JOIN 缺失率 ≤ 1%、粒度唯一性、口径一致性），标注建设优先级（P0/P1/P2），发布矩阵（更新 `dwm_s4_bus_matrix` status 为 published）。建设阶段发现问题通过反馈机制回写矩阵。
+验证矩阵正确性（JOIN/粒度/口径），合成四项最终交付物：总线矩阵（发布版）、DWD 事实表建设清单（字段级，含 ODS 溯源）、DIM 维度表建设清单（字段级，含 ODS 溯源）、主题域清单。优先级路线图作为附带规划产出。
 
-Read `references/step5-matrix-validation.md` for validation procedures, feedback mechanism, and priority roadmap schema.
+Read `references/step5-matrix-validation.md` for validation procedures, deliverable schemas, and priority roadmap.
 
 ## 输出约定
 
-每步执行完成后，将产出物以 CSV 文件写入项目 `output/dwm-bus-matrix/stepN/` 目录：
+各步中间产出写入 `output/dwm-bus-matrix/stepN/` 目录，4 个最终交付物直接写入 `output/dwm-bus-matrix/` 根目录：
 
 ```
 output/
 └── dwm-bus-matrix/
+    ├── dwm_bus_matrix.xlsx              ★ 最终交付物
+    ├── dwm_dwd_fact_spec.csv            ★ 最终交付物
+    ├── dwm_dim_table_spec.csv           ★ 最终交付物
+    ├── dwm_subject_area_summary.csv     ★ 最终交付物
     ├── step1/
     │   ├── dwm_s1_source_registry.csv
     │   ├── dwm_s1_ods_inventory.csv
@@ -132,8 +139,7 @@ output/
     ├── step4/
     │   ├── dwm_s4_fact_dim_ref.csv
     │   ├── dwm_s4_fact_metric.csv
-    │   ├── dwm_s4_dim_registry.csv
-    │   └── dwm_s4_bus_matrix.xlsx
+    │   └── dwm_s4_dim_registry.csv
     └── step5/
         ├── dwm_s5_matrix_check.csv
         └── dwm_s5_priority_roadmap.csv
@@ -217,7 +223,7 @@ python .claude/skills/dwm-bus-matrix/scripts/write_bus_matrix.py \
   --subject-area  output/dwm-bus-matrix/step3/dwm_s3_subject_area.csv \
   --fact-dim-ref  output/dwm-bus-matrix/step4/dwm_s4_fact_dim_ref.csv \
   --dim-registry  output/dwm-bus-matrix/step4/dwm_s4_dim_registry.csv \
-  --output        output/dwm-bus-matrix/step4/dwm_s4_bus_matrix.xlsx \
+  --output        output/dwm-bus-matrix/dwm_bus_matrix.xlsx \
   --version v1.0
 ```
 
@@ -225,7 +231,7 @@ python .claude/skills/dwm-bus-matrix/scripts/write_bus_matrix.py \
 
 1. 每步完成后立即写文件，不等全流程结束
 2. 同一步骤重新执行时覆盖已有文件
-3. 矩阵类输出（`dwm_s4_bus_matrix`）使用 Excel 格式（`.xlsx`），便于二维交叉展示
+3. 矩阵类输出（`dwm_bus_matrix`）使用 Excel 格式（`.xlsx`），便于二维交叉展示
 4. 目录不存在时自动创建
 5. 写入后用 Git 追踪变化
 

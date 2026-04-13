@@ -72,7 +72,7 @@
 | 主数据（字段标注、表画像、主题域） | CSV | `output/dwm-bus-matrix/stepN/dwm_sN_*.csv` |
 | 关系清单（事实-维度引用） | CSV | `output/dwm-bus-matrix/stepN/dwm_sN_*.csv` |
 | 校验报告 | CSV | `output/dwm-bus-matrix/step5/dwm_s5_matrix_check.csv` |
-| 总线矩阵 | Excel (.xlsx) | `output/dwm-bus-matrix/step4/dwm_s4_bus_matrix.xlsx` |
+| 总线矩阵 | Excel (.xlsx) | `output/dwm-bus-matrix/dwm_bus_matrix.xlsx` |
 
 ### 4.2 CSV 格式要求
 

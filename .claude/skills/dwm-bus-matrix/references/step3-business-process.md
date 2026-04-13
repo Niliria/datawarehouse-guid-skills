@@ -72,7 +72,7 @@ WHERE a.source_col IS NOT NULL;
    - 每个主题域必须有：中文名、英文名、编码（2~3 大写字母）、描述
    - 再归组：将业务过程归入已定义的主题域（通过 `subject_area_code` 外键）
    - 约束：一个业务过程只能归属一个主题域
-6. 回填第一步：`dwm_s1_ods_inventory` 的 `subject_area_code`（必填）；`dwm_s1_source_registry` 的 `subject_area_code` 仅当数据源属单一主题域时回填（跨多主题域的数据源留空，以表级 ods_inventory 为准）
+6. 主题域归属统一通过 `dwm_s3_table_profile.subject_area_code` 管理，不回填第一步产出物（查询时 JOIN 即可）
 
 ### 2.3 声明粒度
 
@@ -194,8 +194,7 @@ GROUP BY s.subject_area_code, s.subject_area_name_cn;
 6. 每个业务过程只归属一个主题域（1:1）
 7. `dwm_s3_subject_area` 已定义且外键引用有效
 8. 高风险歧义关系已人工确认
-9. `subject_area_code` 已回填到 `dwm_s1_ods_inventory`（必填）和 `dwm_s1_source_registry`（单主题域数据源回填，跨域留空）
-10. `fact_type` / `fact_type_evidence` 当步允许为空（待第四步回填）
+9. `fact_type` / `fact_type_evidence` 当步允许为空（待第四步回填）
 
 ### 4.2 第四步回写后复验
 

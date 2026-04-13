@@ -10,7 +10,7 @@ Usage:
         --subject-area  output/dwm-bus-matrix/step3/dwm_s3_subject_area.csv \
         --fact-dim-ref  output/dwm-bus-matrix/step4/dwm_s4_fact_dim_ref.csv \
         --dim-registry  output/dwm-bus-matrix/step4/dwm_s4_dim_registry.csv \
-        --output        output/dwm-bus-matrix/step4/dwm_s4_bus_matrix.xlsx \
+        --output        output/dwm-bus-matrix/dwm_bus_matrix.xlsx \
         --version       v1.0
 
 Requires: openpyxl (pip install openpyxl)
@@ -209,8 +209,8 @@ def main():
     parser.add_argument("--subject-area", required=True, help="Path to dwm_s3_subject_area.csv")
     parser.add_argument("--fact-dim-ref", required=True, help="Path to dwm_s4_fact_dim_ref.csv")
     parser.add_argument("--dim-registry", required=True, help="Path to dwm_s4_dim_registry.csv")
-    parser.add_argument("--output", "-o", default="output/dwm-bus-matrix/step4/dwm_s4_bus_matrix.xlsx",
-                        help="Output xlsx path (default: output/dwm-bus-matrix/step4/dwm_s4_bus_matrix.xlsx)")
+    parser.add_argument("--output", "-o", default="output/dwm-bus-matrix/dwm_bus_matrix.xlsx",
+                        help="Output xlsx path (default: output/dwm-bus-matrix/dwm_bus_matrix.xlsx)")
     parser.add_argument("--version", "-v", default="v1.0", help="Matrix version (default: v1.0)")
     parser.add_argument("--status", "-s", default="draft", help="Matrix status (default: draft)")
     args = parser.parse_args()

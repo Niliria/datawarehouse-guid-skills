@@ -22,7 +22,7 @@
 1. 按"一个独立来源一行"建立 `dwm_s1_source_registry`
 2. 填写技术属性：`source_code` / `source_type` / `conn_info` / `charset` / `table_count` / `status` / `registered_at`
 3. 评估元数据完整度：`has_ddl` / `has_constraint` / `has_comment` / `completeness_level` / `fallback_strategy`
-4. 业务属性暂留空：`subject_area_code`（跨域数据源留空）/ `owner`（第三步回填）；`source_desc` 已知时直接填写
+4. 业务属性暂留空：`owner`（第三步回填）；`source_desc` 已知时直接填写
 5. 校验唯一性：`source_code` 全局唯一
 
 ### 2.2 ODS 表盘点
@@ -89,7 +89,6 @@
 | has_comment | 是否有字段注释 | 是 | `Y` / `N` |
 | completeness_level | 完整度等级 | 是 | `完整` / `部分` / `缺失` |
 | fallback_strategy | 降级策略 | 是 | `标准流程` / `降级流程` / `快速模式` |
-| subject_area_code | 主题域编码 | 否 | 第三步回填，仅当数据源属单一主题域时填写（跨多主题域留空，以 ods_inventory 表级为准）。外键引用 `dwm_s3_subject_area` |
 | source_desc | 数据源描述 | 否 | 数据源业务说明（第一步填写，无信息时留空） |
 | owner | 负责人 | 否 | 第三步回填 |
 | registered_at | 注册时间 | 是 | 数据源登记时间 |
@@ -114,7 +113,6 @@
 | partition_column | 分区字段 | 条件 | 增量时必填，如 `dt` |
 | incr_column | 增量标识字段 | 条件 | `sync_mode=INCR` 时必填 |
 | storage_format | 存储格式 | 是 | `ORC` / `Parquet` / `Text` 等 |
-| subject_area_code | 主题域编码 | 否 | 第三步回填，外键引用 `dwm_s3_subject_area` |
 | updated_at | 更新时间 | 是 | 最近修改时间 |
 
 > 主键：`ods_table_name`
@@ -156,7 +154,7 @@
 4. 增量表均明确 `incr_column` 与时间边界
 5. **`dwm_s1_field_registry` 覆盖率 >= 90%**（API/文件类可豁免部分字段）
 6. 字段映射完整性 100%：有字段重命名的必须记录 `ods_column_name` 和 `transform_rule`
-7. 数据源注册表不混入表级字段（`subject_area_code` 待第三步回填）
+7. 第一步产出物不包含主题域信息（主题域归属由第三步 `dwm_s3_table_profile` 管理）
 
 ---
 
