@@ -1,2 +1,0 @@
-﻿source_code,source_type,conn_info,charset,table_count,status,has_ddl,has_constraint,has_comment,completeness_level,fallback_strategy,subject_area_code,source_desc,owner,registered_at,updated_at
-yummy001,MySQL,DataGrip:测试/yummy,utf8mb4,19,active,Y,N,Y,部分,降级流程,,供应商履约评价系统数据库,,2026-04-12,2026-04-12
