@@ -70,15 +70,16 @@ WHERE dt = '${check_dt}';
 
 对每个业务过程（= 一张 DWD 事实表），生成字段级建设规格：
 
-1. **生成 DWD 表名**：`dwd_{subject_area_code}_{bp_standard_name}_{suffix}`
+1. **生成 DWD 表名**：`dwd_{subject_area_code}_{bp_standard_name}_{suffix}`（`subject_area_code` 统一转小写）
    - suffix 依据 `dwm_s1_ods_inventory.sync_mode`：`FULL` → `df`，`INCR` → `di`
 2. **汇总字段**（按以下顺序）：
    - 粒度键：来自 `dwm_s3_table_profile.grain_keys`
    - 维度外键：来自 `dwm_s4_fact_dim_ref WHERE dimension_type='外键'`
    - 退化维度：来自 `dwm_s4_fact_dim_ref WHERE dimension_type='退化维度'`
+   - 低基数离散属性：来自 `dwm_s4_fact_dim_ref WHERE dimension_type='低基数离散属性候选'`
    - 度量字段：来自 `dwm_s4_fact_metric`
    - 业务时间：来自 `dwm_s2_field_tag WHERE core_tag='业务时间'`
-3. **标注 ODS 溯源**：每个字段通过 `dwm_s2_field_tag` 关联 `ods_table_name` + `col_name`
+3. **标注 ODS 溯源**：每个字段通过 `dwm_s2_field_tag` 关联 `ods_table_name` + `col_name`，并通过 `dwm_s1_field_registry.data_type` 填充 `ods_data_type`
 4. **标注维度关联**：外键字段标注关联的 DIM 表（来自 `dwm_s4_dim_registry.dimension_key`）
 5. 产出 `dwm_dwd_fact_spec`
 
@@ -90,9 +91,8 @@ WHERE dt = '${check_dt}';
 2. **汇总字段**（按以下顺序）：
    - 粒度键（业务键/代理键）：来自 `dwm_s4_dim_registry.grain_keys`
    - 维度属性：来自 `dwm_s4_dim_registry.dimension_columns`
-   - SCD 管理字段（如有 SCD2）：`dw_start_date`、`dw_end_date`、`dw_is_current`
-3. **标注 ODS 溯源**：通过 `dwm_s2_field_tag WHERE ods_table_name = source_dimension_table` 关联
-   - SCD 管理字段的 ODS 来源标记为 `SYSTEM_GENERATED`
+   - **不包含** SCD 管理字段（`dw_start_date`/`dw_end_date`/`dw_is_current`），这些由 DIM 建设阶段 ETL 自动生成，SCD 策略已在 `dwm_s4_dim_registry` 中声明
+3. **标注 ODS 溯源**：通过 `dwm_s2_field_tag WHERE ods_table_name = source_dimension_table` 关联 `ods_table_name` + `col_name`，并通过 `dwm_s1_field_registry.data_type` 填充 `ods_data_type`
 4. **标注 SCD 类型**：解析 `dwm_s4_dim_registry.scd_columns`，逐字段标注 `SCD1`/`SCD2`/`SCD3`/`-`
 5. 产出 `dwm_dim_table_spec`
 
@@ -157,15 +157,16 @@ WHERE dt = '${check_dt}';
 | grain_statement | 粒度声明 | 是 | 来自 `dwm_s3_table_profile.grain_statement` |
 | dwd_column_name | DWD 字段名 | 是 | DWD 层字段命名 |
 | dwd_column_comment | 字段中文说明 | 是 | 来自 `dwm_s2_field_tag.col_comm` 或人工修正 |
-| column_role | 字段角色 | 是 | `grain_key` / `fk` / `degenerate_dim` / `measure` / `business_time` |
+| column_role | 字段角色 | 是 | `grain_key` / `fk` / `degenerate_dim` / `low_card_attr` / `measure` / `business_time` |
 | ods_table_name | 来源 ODS 表 | 是 | 来自 `dwm_s2_field_tag.ods_table_name` |
 | ods_column_name | 来源 ODS 字段 | 是 | 来自 `dwm_s2_field_tag.col_name` |
+| ods_data_type | ODS 字段数据类型 | 是 | 来自 `dwm_s1_field_registry.data_type`，如 `varchar(255)` / `int` / `decimal(10,2)` |
 | ref_dim_table | 关联 DIM 表 | 条件 | `column_role=fk` 时必填，来自 `dwm_s4_dim_registry.dimension_key` |
 | agg_suggest | 聚合建议 | 条件 | `column_role=measure` 时必填 |
 | unit | 度量单位 | 条件 | `column_role=measure` 时必填 |
 | is_derived | 是否派生 | 条件 | `column_role=measure` 时必填 |
 | derived_logic | 派生逻辑 | 条件 | `is_derived=Y` 时必填 |
-| sort_order | 字段排序 | 是 | 整数，按 `grain_key→fk→degenerate_dim→measure→business_time` |
+| sort_order | 字段排序 | 是 | 整数，按 `grain_key→fk→degenerate_dim→low_card_attr→measure→business_time` |
 | remark | 备注 | 否 | 额外说明 |
 | updated_at | 更新时间 | 是 | 最近修改时间 |
 
@@ -181,15 +182,18 @@ WHERE dt = '${check_dt}';
 | dimension_name | 维度中文名 | 是 | 来自 `dwm_s4_dim_registry.dimension_name` |
 | dim_column_name | DIM 字段名 | 是 | DIM 层字段命名 |
 | dim_column_comment | 字段中文说明 | 是 | 来自 `dwm_s2_field_tag.col_comm` 或人工修正 |
-| column_role | 字段角色 | 是 | `pk` / `bk` / `attribute` / `scd_mgmt` |
-| scd_type | SCD 类型 | 条件 | `column_role IN (attribute)` 时必填：`SCD1` / `SCD2` / `SCD3` / `-` |
+| column_role | 字段角色 | 是 | `pk` / `bk` / `attribute` |
+| scd_type | SCD 类型 | 条件 | `column_role=attribute` 时必填：`SCD1` / `SCD2` / `SCD3` / `-` |
 | ods_table_name | 来源 ODS 表 | 是 | 来自 `dwm_s4_dim_registry.source_dimension_table` |
-| ods_column_name | 来源 ODS 字段 | 是 | SCD 管理字段填 `SYSTEM_GENERATED` |
-| sort_order | 字段排序 | 是 | 整数，按 `pk→bk→attribute→scd_mgmt` |
+| ods_column_name | 来源 ODS 字段 | 是 | 来自 `dwm_s2_field_tag.col_name` |
+| ods_data_type | ODS 字段数据类型 | 是 | 来自 `dwm_s1_field_registry.data_type`，如 `varchar(255)` / `int` / `decimal(10,2)` |
+| sort_order | 字段排序 | 是 | 整数，按 `pk→bk→attribute` |
 | remark | 备注 | 否 | 额外说明 |
 | updated_at | 更新时间 | 是 | 最近修改时间 |
 
 > 主键：`dim_table_name + dim_column_name`
+>
+> SCD 管理字段（`dw_start_date`/`dw_end_date`/`dw_is_current`）不纳入本表。SCD 策略已在 `dwm_s4_dim_registry.scd_strategy` + `scd_columns` 中声明，管理字段由 DIM 建设阶段 ETL 自动生成。
 
 ### 3.4 `dwm_subject_area_summary`（主题域清单）
 
@@ -247,9 +251,9 @@ WHERE dt = '${check_dt}';
 3. **口径验证**：一致性维度在不同事实中口径一致
 4. **异常闭环**：`dwm_s5_matrix_check` 中所有 `fail` 项均有 `handle_decision`
 5. **DWD spec 完整性**：每张 DWD 表的字段数 = 粒度键数 + 维度外键数 + 退化维度数 + 度量数 + 业务时间数
-6. **DIM spec 完整性**：每张 DIM 表的字段数 = 粒度键数 + 维度属性数（+ SCD 管理字段数）
+6. **DIM spec 完整性**：每张 DIM 表的字段数 = 粒度键数 + 维度属性数（不含 SCD 管理字段，SCD 策略由 `dwm_s4_dim_registry` 声明）
 7. **主题域汇总一致性**：`subject_area_summary.bp_count` 与 `table_profile` 中 fact 行数一致
-8. **可追溯**：所有 DWD/DIM 字段的 ODS 溯源非空
+8. **可追溯**：所有 DWD/DIM 字段的 `ods_table_name`、`ods_column_name`、`ods_data_type` 非空
 
 ---
 

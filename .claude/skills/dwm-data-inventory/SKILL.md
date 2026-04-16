@@ -1,5 +1,5 @@
 ---
-name: dwm-1-data-inventory
+name: dwm-data-inventory
 description: >-
   Use when the user asks to "数据盘点", "ODS盘点", "数据源接入", "字段采集",
   "字段画像", "元数据采集", "源系统登记", "field profiling",
@@ -7,7 +7,7 @@ description: >-
 version: 1.0.0
 ---
 
-# ① 数据盘点（ODS + 字段元数据 + 客观画像）
+# 数据盘点（ODS + 字段元数据 + 客观画像）
 
 ## 定位
 
@@ -24,10 +24,10 @@ version: 1.0.0
 - 字段客观画像（7 种客观角色 + 补充画像属性）
 
 **不做什么**：
-- 不判度量可加性（→ ④ dwm-4-fact）
-- 不判退化维度（→ ③ dwm-3-dimension）
-- 不判 fact_candidate（→ ② dwm-2-business-process 直接判表角色）
-- 不定义主题域（→ ② dwm-2-business-process）
+- 不判度量可加性（→ dwm-fact）
+- 不判退化维度（→ dwm-dimension）
+- 不判表角色（→ dwm-business-process 直接判）
+- 不定义主题域（→ dwm-business-process）
 
 ## 输入
 

@@ -60,7 +60,7 @@
 - 回填完成后须通过原步骤的复验检查项
 
 已知回写关系：
-- 第三步回填第一步 `dwm_s1_ods_inventory` 的 `subject_area_code`（必填）；`dwm_s1_source_registry` 的 `subject_area_code` 仅当数据源属单一主题域时回填
+- 主题域归属统一通过 `dwm_s3_table_profile.subject_area_code` 管理，不回填第一步产出物（查询时 JOIN 即可）
 - 第四步回写第三步 `dwm_s3_table_profile` 的 `fact_type` / `fact_type_evidence`
 
 ## 4. 输出格式规范

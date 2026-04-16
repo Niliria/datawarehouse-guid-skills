@@ -1,5 +1,5 @@
 ---
-name: dwm-3-dimension
+name: dwm-dimension
 description: >-
   Use when the user asks to "确认维度", "维度确定", "维度提取", "一致性维度",
   "SCD策略", "退化维度判定", "维度注册", "identify dimensions", "conformed dimensions",
@@ -7,7 +7,7 @@ description: >-
 version: 1.0.0
 ---
 
-# ③ 确认维度（Kimball Step 3）
+# 确认维度（Kimball Step 3）
 
 ## 定位
 
@@ -23,18 +23,18 @@ version: 1.0.0
 - 确认 SCD 策略（SCD1/SCD2/SCD3）
 
 **不做什么**：
-- 不判事实表类型（→ ④ dwm-4-fact）
-- 不判度量归属（→ ④ dwm-4-fact）
-- 不做字段画像（→ ① dwm-1-data-inventory）
+- 不判事实表类型（→ dwm-fact）
+- 不判度量归属（→ dwm-fact）
+- 不做字段画像（→ dwm-data-inventory）
 
 ## 输入依赖
 
 | 输入项 | 来源 Skill | 用途 |
 |--------|-----------|------|
-| `dwm_bp_table_profile WHERE table_role='fact'` | ② | 业务过程清单与粒度声明 |
-| `dwm_bp_table_profile WHERE table_role='dimension'` | ② | 维度候选表与粒度键 |
-| `dwm_inv_field_profile` | ① | 字段角色画像（外键、业务键等） |
-| `dwm_bp_subject_area` | ② | 主题域定义 |
+| `dwm_bp_table_profile WHERE table_role='fact'` | dwm-business-process | 业务过程清单与粒度声明 |
+| `dwm_bp_table_profile WHERE table_role='dimension'` | dwm-business-process | 维度候选表与粒度键 |
+| `dwm_inv_field_profile` | dwm-data-inventory | 字段角色画像（外键、业务键等） |
+| `dwm_bp_subject_area` | dwm-business-process | 主题域定义 |
 
 ## 产出物
 

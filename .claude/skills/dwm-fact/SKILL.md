@@ -1,5 +1,5 @@
 ---
-name: dwm-4-fact
+name: dwm-fact
 description: >-
   Use when the user asks to "确认事实", "事实确定", "度量归属", "度量确认",
   "事实表类型", "派生度量", "identify facts", "determine measures",
@@ -7,13 +7,13 @@ description: >-
 version: 1.0.0
 ---
 
-# ④ 确认事实（Kimball Step 4）
+# 确认事实（Kimball Step 4）
 
 ## 定位
 
 对应 Kimball 四步法的**第四步**：确认事实。先确定事实表类型（驱动度量可加性校验规则），再将度量归属到对应业务过程。
 
-**为什么先事实后维度不对？** 实际上③和④可以并行，但④的度量可加性校验依赖事实表类型。Kimball 原文中"确定维度"先于"确定事实"，但两者在实践中常交替进行。本框架将维度独立为③是因为维度引用不依赖事实表类型，而度量归属依赖。
+**为什么先事实后维度不对？** 实际上 dwm-dimension 和 dwm-fact 可以并行，但度量可加性校验依赖事实表类型。本框架将维度独立为 dwm-dimension 是因为维度引用不依赖事实表类型，而度量归属依赖。
 
 ## 职责边界
 
@@ -24,17 +24,17 @@ version: 1.0.0
 - 识别派生度量（如 利润 = 收入 - 成本）
 
 **不做什么**：
-- 不提取维度引用（→ ③ dwm-3-dimension）
-- 不做字段画像（→ ① dwm-1-data-inventory）
-- 不识别业务过程（→ ② dwm-2-business-process）
+- 不提取维度引用（→ dwm-dimension）
+- 不做字段画像（→ dwm-data-inventory）
+- 不识别业务过程（→ dwm-business-process）
 
 ## 输入依赖
 
 | 输入项 | 来源 Skill | 用途 |
 |--------|-----------|------|
-| `dwm_bp_table_profile WHERE table_role='fact'` | ② | 业务过程清单与粒度声明 |
-| `dwm_inv_field_profile` | ① | 字段角色画像（数值型字段 → 度量候选） |
-| `dwm_inv_field_registry` | ① | 字段类型信息 |
+| `dwm_bp_table_profile WHERE table_role='fact'` | dwm-business-process | 业务过程清单与粒度声明 |
+| `dwm_inv_field_profile` | dwm-data-inventory | 字段角色画像（数值型字段 → 度量候选） |
+| `dwm_inv_field_registry` | dwm-data-inventory | 字段类型信息 |
 
 ## 产出物
 

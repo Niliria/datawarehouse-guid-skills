@@ -16,24 +16,23 @@ Usage:
 Requires: openpyxl (pip install openpyxl)
 """
 
-import csv
 import sys
+import os
 import argparse
 from datetime import datetime
 from pathlib import Path
 
+# Reuse shared read_csv to ensure consistent BOM handling
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from read_csv import read_csv
+
 try:
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
 except ImportError:
     print("Error: openpyxl is required. Install with: pip install openpyxl", file=sys.stderr)
     sys.exit(1)
-
-
-def read_csv(filepath: str) -> list[dict]:
-    """Read CSV with BOM handling."""
-    with open(filepath, "r", encoding="utf-8-sig", newline="") as f:
-        return list(csv.DictReader(f))
 
 
 def build_matrix(
@@ -53,19 +52,25 @@ def build_matrix(
     # Build subject area lookup
     sa_lookup = {sa["subject_area_code"]: sa for sa in subject_area}
 
-    # Build rows: fact tables with their business processes
+    # Build rows: one row per unique business process (not per ODS table)
     rows = []
+    seen_bp = {}
     for tp in table_profile:
         if tp.get("table_role") != "fact":
             continue
+        bp_name = tp.get("bp_standard_name", "")
+        if bp_name in seen_bp:
+            continue
         sa_code = tp.get("subject_area_code", "")
         sa_name = sa_lookup.get(sa_code, {}).get("subject_area_name_cn", sa_code)
+        seen_bp[bp_name] = True
         rows.append({
             "subject_area_code": sa_code,
             "subject_area_name": sa_name,
-            "bp_standard_name": tp.get("bp_standard_name", ""),
+            "business_process": tp.get("business_process", ""),
+            "bp_standard_name": bp_name,
             "fact_type": tp.get("fact_type", ""),
-            "ods_table_name": tp.get("ods_table_name", ""),
+            "grain_statement": tp.get("grain_statement", ""),
         })
 
     # Sort by subject area, then by bp_standard_name
@@ -130,7 +135,7 @@ def write_xlsx(
     center_align = Alignment(horizontal="center", vertical="center")
 
     # -- Header row --
-    fixed_headers = ["主题域", "业务过程", "事实表类型"]
+    fixed_headers = ["主题域", "业务过程", "业务过程代码", "粒度声明", "事实表类型"]
     dim_headers = [d.get("dimension_name", d.get("dimension_key", "")) for d in columns]
     all_headers = fixed_headers + dim_headers
 
@@ -147,7 +152,9 @@ def write_xlsx(
     for row_idx, row_data in enumerate(rows, data_start_row):
         sa_code = row_data["subject_area_code"]
         sa_name = row_data["subject_area_name"]
+        bp_cn = row_data["business_process"]
         bp_name = row_data["bp_standard_name"]
+        grain = row_data["grain_statement"]
         fact_type = row_data["fact_type"]
 
         # Column A: subject area (every row)
@@ -155,19 +162,28 @@ def write_xlsx(
         cell_a.alignment = Alignment(vertical="center")
         cell_a.border = thin_border
 
-        # Column B: business process
-        cell_b = ws.cell(row=row_idx, column=2, value=bp_name)
+        # Column B: business process (Chinese)
+        cell_b = ws.cell(row=row_idx, column=2, value=bp_cn)
         cell_b.border = thin_border
 
-        # Column C: fact type
-        cell_c = ws.cell(row=row_idx, column=3, value=fact_type)
+        # Column C: business process code (English)
+        cell_c = ws.cell(row=row_idx, column=3, value=bp_name)
         cell_c.border = thin_border
+
+        # Column D: grain statement
+        cell_d = ws.cell(row=row_idx, column=4, value=grain)
+        cell_d.alignment = Alignment(wrap_text=True, vertical="center")
+        cell_d.border = thin_border
+
+        # Column E: fact type
+        cell_e = ws.cell(row=row_idx, column=5, value=fact_type)
+        cell_e.border = thin_border
 
         # Dimension columns
         for dim_idx, dim in enumerate(columns):
             dim_key = dim.get("dimension_key", "")
             marker = cells.get((bp_name, dim_key), "-")
-            cell = ws.cell(row=row_idx, column=4 + dim_idx, value=marker)
+            cell = ws.cell(row=row_idx, column=6 + dim_idx, value=marker)
             cell.alignment = center_align
             cell.border = thin_border
             if marker == "✓":
@@ -192,12 +208,13 @@ def write_xlsx(
 
     # -- Column widths --
     ws.column_dimensions["A"].width = 18
-    ws.column_dimensions["B"].width = 20
-    ws.column_dimensions["C"].width = 18
+    ws.column_dimensions["B"].width = 16
+    ws.column_dimensions["C"].width = 22
+    ws.column_dimensions["D"].width = 36
+    ws.column_dimensions["E"].width = 18
     for i in range(len(columns)):
-        col_letter = chr(ord("D") + i) if i < 23 else None
-        if col_letter:
-            ws.column_dimensions[col_letter].width = 14
+        col_letter = get_column_letter(6 + i)
+        ws.column_dimensions[col_letter].width = 14
 
     wb.save(output_path)
     print(f"Bus matrix written -> {output_path} ({len(rows)} processes × {len(columns)} dimensions)")

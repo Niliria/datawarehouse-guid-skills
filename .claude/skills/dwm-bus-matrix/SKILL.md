@@ -94,7 +94,7 @@ Read `references/step1-ods-inventory.md` for field definitions, collection metho
 
 ### 第二步：逐字段语义标签化
 
-使用 15 个固定标签（10 核心 + 5 扩展）为每个 ODS 字段赋予语义。执行两遍扫描：第一遍跳过退化维度（Q5），完成 `fact_candidate` 初判后，第二遍对事实候选表执行 Q5。关键阈值：唯一率 ≥ 99.9%、外键缺失率 ≤ 1%、低基数上限 ≤ 50。
+使用 15 个固定标签（12 核心 + 3 扩展）为每个 ODS 字段赋予语义。执行两遍扫描：第一遍跳过退化维度（Q5），完成 `fact_candidate` 初判后，第二遍对事实候选表执行 Q5。关键阈值：唯一率 ≥ 99.9%、外键缺失率 ≤ 1%、低基数上限 ≤ 50。
 
 Read `references/step2-field-tagging.md` for the complete decision tree, threshold system, and output template.
 

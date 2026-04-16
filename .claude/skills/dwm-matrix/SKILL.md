@@ -1,52 +1,52 @@
 ---
-name: dwm-5-bus-matrix
+name: dwm-matrix
 description: >-
   Use when the user asks to "构建总线矩阵", "数仓建模", "总线矩阵",
   "矩阵验证", "优先级发布", "DWD建设清单", "DIM建设清单",
   "bus matrix", "第一步", "第二步", "第三步", "第四步", "第五步",
   or discusses data warehouse bus matrix construction, matrix assembly, validation, or delivery.
-  This is the orchestrator that coordinates Skills ①②③④.
+  This is the orchestrator that coordinates dwm-data-inventory, dwm-business-process, dwm-dimension, dwm-fact.
 version: 1.0.0
 ---
 
-# ⑤ 组装总线矩阵（编排 + 验证 + 交付）
+# 组装总线矩阵（编排 + 验证 + 交付）
 
 ## 定位
 
-编排 ①②③④ 四个 Skill，完成从数据源盘点到总线矩阵发布的全流程。同时负责矩阵验证和最终交付物合成。
+编排 dwm-data-inventory / dwm-business-process / dwm-dimension / dwm-fact 四个 Skill，完成从数据源盘点到总线矩阵发布的全流程。同时负责矩阵验证和最终交付物合成。
 
 基于《数据仓库工具箱》(Kimball) 四步法与《阿里巴巴大数据之路》分层实践。Kimball 负责"怎么建模是对的"，阿里分层负责"怎么工程化落地可持续"。
 
 ## 编排流程
 
 ```
-① dwm-1-data-inventory    数据盘点（ODS + 字段元数据 + 客观画像）
+dwm-data-inventory       数据盘点（ODS + 字段元数据 + 客观画像）
         ↓
-② dwm-2-business-process  选择业务过程 + 声明粒度 (Kimball Step 1+2)
+dwm-business-process     选择业务过程 + 声明粒度 (Kimball Step 1+2)
         ↓
    ┌────┴────┐
-③ dwm-3-dimension    ④ dwm-4-fact
-   确认维度(Step 3)     确认事实(Step 4)
+dwm-dimension        dwm-fact
+确认维度(Step 3)      确认事实(Step 4)
    └────┬────┘
         ↓
-⑤ 组装 + 验证 + 交付（本 Skill）
+dwm-matrix           组装 + 验证 + 交付（本 Skill）
 ```
 
 ### 步骤映射
 
 | 用户说 | 执行 Skill |
 |--------|-----------|
-| "第一步" / "数据盘点" / "ODS盘点" | → ① dwm-1-data-inventory |
-| "第二步" / "识别业务过程" / "粒度声明" | → ② dwm-2-business-process |
-| "第三步" / "确认维度" / "一致性维度" | → ③ dwm-3-dimension |
-| "第四步" / "确认事实" / "度量归属" | → ④ dwm-4-fact |
-| "第五步" / "矩阵验证" / "发布" | → ⑤ 本 Skill（验证 + 交付） |
-| "构建总线矩阵" / "数仓建模" | → ⑤ 从第一步开始全流程 |
+| "第一步" / "数据盘点" / "ODS盘点" | → dwm-data-inventory |
+| "第二步" / "识别业务过程" / "粒度声明" | → dwm-business-process |
+| "第三步" / "确认维度" / "一致性维度" | → dwm-dimension |
+| "第四步" / "确认事实" / "度量归属" | → dwm-fact |
+| "第五步" / "矩阵验证" / "发布" | → dwm-matrix（验证 + 交付） |
+| "构建总线矩阵" / "数仓建模" | → dwm-matrix 从第一步开始全流程 |
 
 ## 本 Skill 自身职责（验证 + 交付）
 
 ### 验证
-- 粒度唯一性验证（每个 BP）
+- 粒度唯一性验证（每个业务过程）
 - JOIN 验证（核心维度 JOIN 缺失率 ≤ 1%）
 - 口径验证（一致性维度跨事实表口径一致）
 - 应连未连检查
@@ -62,10 +62,10 @@ version: 1.0.0
 
 | 输入项 | 来源 Skill |
 |--------|-----------|
-| `dwm_inv_*` | ① |
-| `dwm_bp_*` | ② |
-| `dwm_dim_*` | ③ |
-| `dwm_fct_*` | ④ |
+| `dwm_inv_*` | dwm-data-inventory |
+| `dwm_bp_*` | dwm-business-process |
+| `dwm_dim_*` | dwm-dimension |
+| `dwm_fct_*` | dwm-fact |
 
 ## 产出物
 
@@ -84,11 +84,11 @@ version: 1.0.0
 
 | 当前步骤 | 回退目标 | 触发条件 |
 |---------|---------|---------|
-| ② | ① | 字段画像有误导致表角色判断错误 |
-| ③ | ① | 外键画像有误导致维度关联错误 |
-| ④ | ② | 粒度声明有误 |
-| ⑤ | ③④ | 应连未连或维度口径不一致 |
-| ⑤ | ② | 聚合结果违反业务常识 |
+| dwm-business-process | dwm-data-inventory | 字段画像有误导致表角色判断错误 |
+| dwm-dimension | dwm-data-inventory | 外键画像有误导致维度关联错误 |
+| dwm-fact | dwm-business-process | 粒度声明有误 |
+| dwm-matrix | dwm-dimension / dwm-fact | 应连未连或维度口径不一致 |
+| dwm-matrix | dwm-business-process | 聚合结果违反业务常识 |
 
 回退原则：最小回退、影响评估、变更审批、防循环（同一问题不超过 2 次）。
 
@@ -111,7 +111,7 @@ from write_csv import write_csv
 ```
 
 ```bash
-python .claude/skills/dwm-5-bus-matrix/scripts/write_bus_matrix.py \
+python .claude/skills/dwm-matrix/scripts/write_bus_matrix.py \
   --table-profile output/dwm-bus-matrix/business-process/dwm_bp_table_profile.csv \
   --subject-area  output/dwm-bus-matrix/business-process/dwm_bp_subject_area.csv \
   --fact-dim-ref  output/dwm-bus-matrix/dimension/dwm_dim_fact_ref.csv \

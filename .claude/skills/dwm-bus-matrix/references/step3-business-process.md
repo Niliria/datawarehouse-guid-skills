@@ -136,7 +136,7 @@ WHERE a.source_col IS NOT NULL;
 
 设计原则：
 1. 主题域数量控制在 5~10 个
-2. 英文缩写用于 DWD/DWS/ADS 表命名（如 `dwd_trd_order_di`）
+2. 英文缩写用于 DWD/DWS/ADS 表命名（如 `dwd_trd_order_di`，缩写统一转小写）
 3. 维度表按实体所属域归入，不按引用它的事实表归入
 
 ### 3.3 表关系图（可视化，非独立数据交付物）

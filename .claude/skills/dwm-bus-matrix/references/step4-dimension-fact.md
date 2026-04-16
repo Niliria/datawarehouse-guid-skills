@@ -188,12 +188,15 @@ WHERE ods_table_name = 'my001_order';
 
 Excel 结构规范：
 - Sheet 名：`总线矩阵 v{version}`
-- A 列：主题域编码（同主题域合并单元格）
-- B 列：业务过程标准名（`bp_standard_name`）
-- C 列：事实表类型（`fact_type`）
-- D 列起：每列一个一致性维度（列头 = `dimension_name`，来自 `dwm_s4_dim_registry`）
+- A 列：主题域（`主题域名称(编码)`，每行填充，不做合并）
+- B 列：业务过程（中文名，来自 `business_process`）
+- C 列：业务过程代码（英文标准名，`bp_standard_name`）
+- D 列：粒度声明（来自 `grain_statement`）
+- E 列：事实表类型（`fact_type`）
+- F 列起：每列一个一致性维度（列头 = `dimension_name`，来自 `dwm_s4_dim_registry`）
 - 单元格值：`✓` / `-` / 空
 - 末行区域：元数据（version / status / updated_by / updated_at）
+- 行按 `bp_standard_name` 去重（一个业务过程 = 一行，不按 ODS 表展开）
 
 ### 3.5 派生查询
 

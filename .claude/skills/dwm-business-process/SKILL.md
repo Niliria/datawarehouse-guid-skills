@@ -1,5 +1,5 @@
 ---
-name: dwm-2-business-process
+name: dwm-business-process
 description: >-
   Use when the user asks to "识别业务过程", "业务过程识别", "声明粒度", "粒度声明",
   "定义主题域", "主题域划分", "表角色判定", "select business process", "declare grain",
@@ -7,7 +7,7 @@ description: >-
 version: 1.0.0
 ---
 
-# ② 选择业务过程 + 声明粒度（Kimball Step 1+2）
+# 选择业务过程 + 声明粒度（Kimball Step 1+2）
 
 ## 定位
 
@@ -25,17 +25,17 @@ version: 1.0.0
 - 接口数据无主键时通过画像降级发现业务键和外键
 
 **不做什么**：
-- 不做字段级标签（→ ① dwm-1-data-inventory 的客观画像）
-- 不判度量归属（→ ④ dwm-4-fact）
-- 不提取维度引用（→ ③ dwm-3-dimension）
+- 不做字段画像（→ dwm-data-inventory）
+- 不判度量归属（→ dwm-fact）
+- 不提取维度引用（→ dwm-dimension）
 
 ## 输入依赖
 
 | 输入项 | 来源 Skill | 用途 |
 |--------|-----------|------|
-| `dwm_inv_field_profile` | ① | 字段角色画像，用于画表关系图 |
-| `dwm_inv_field_registry` | ① | 约束信息（PK/UK/FK），连线主依据 |
-| `dwm_inv_ods_inventory` | ① | ODS 表清单与同步模式 |
+| `dwm_inv_field_profile` | dwm-data-inventory | 字段角色画像，用于画表关系图 |
+| `dwm_inv_field_registry` | dwm-data-inventory | 约束信息（PK/UK/FK），连线主依据 |
+| `dwm_inv_ods_inventory` | dwm-data-inventory | ODS 表清单与同步模式 |
 
 ## 产出物
 
