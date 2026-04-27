@@ -17,3 +17,5 @@ plan_docs/
 output/spec-to-dwd-dim-job/
 test/
 .claude/plans/
+.claude/settings.local.json
+.claude/CLAUDE.md
