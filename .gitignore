@@ -16,3 +16,4 @@ plan_docs/
 .claude/skills/spec-to-dwd-dim-job/
 output/spec-to-dwd-dim-job/
 test/
+.claude/plans/
