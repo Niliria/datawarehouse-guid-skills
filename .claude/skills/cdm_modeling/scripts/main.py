@@ -173,32 +173,80 @@ class CDMModelingSkill:
     def _generate_dim_csv(self, csv_file: Path, dim_designs: Dict[str, Dict]) -> None:
         with open(csv_file, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["table_name", "entity", "business_key", "scd_type", "source_tables", "attribute_count"])
             for table_name, dim in sorted(dim_designs.items()):
-                writer.writerow([
-                    table_name,
-                    dim["entity"],
-                    dim["business_key"],
-                    dim["scd_type"],
-                    "+".join(dim.get("source_tables", [])),
-                    len(dim.get("attributes", [])),
-                ])
+                writer.writerow(["模型名", table_name])
+                writer.writerow(["中文名", f"维度表-{dim.get('display_name', dim['entity'])}"])
+                writer.writerow(["数据来源", "+".join(dim.get("source_tables", [])) or "ODS"])
+                writer.writerow(["主题", dim["entity"]])
+                writer.writerow(["层级", "DIM"])
+                writer.writerow(["说明", f"维度表: {dim['entity']}, SCD Type {dim['scd_type']}"])
+                writer.writerow(["分区字段", "pt"])
+                writer.writerow(["字段", "字段名", "字段类型", "字段说明", "数据来源", "是否为空", "维度"])
+                writer.writerow(["", dim["business_key"], "STRING", f"{dim['entity']}业务键", "首取", "N", "Y"])
+                for attr in dim.get("attributes", []):
+                    writer.writerow([
+                        "",
+                        attr["name"],
+                        attr.get("type") or "STRING",
+                        attr.get("description") or attr["name"],
+                        attr.get("source_field", attr["name"]),
+                        "Y",
+                        "Y",
+                    ])
+                if dim.get("scd_type") == 2:
+                    writer.writerow(["", "begin_date", "STRING", "生效日期", "系统生成", "N", ""])
+                    writer.writerow(["", "end_date", "STRING", "失效日期", "系统生成", "Y", ""])
+                    writer.writerow(["", "is_active", "INT", "是否当前记录", "系统生成", "N", ""])
+                writer.writerow(["", "etl_insert_time", "TIMESTAMP", "ETL插入时间", "ETL", "N", ""])
+                writer.writerow(["", "etl_update_time", "TIMESTAMP", "ETL更新时间", "ETL", "Y", ""])
+                writer.writerow(["", "pt", "STRING", "分区日期", "ETL", "N", ""])
+                writer.writerow([])
+                writer.writerow([])
 
     def _generate_dwd_csv(self, csv_file: Path, dwd_designs: Dict[str, Dict]) -> None:
         with open(csv_file, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["table_name", "domain", "business_process", "grain", "fact_type", "dimensions", "measures", "source_tables"])
             for table_name, fact in sorted(dwd_designs.items()):
-                writer.writerow([
-                    table_name,
-                    fact["domain"],
-                    fact["business_process"],
-                    fact["grain"],
-                    fact["fact_type"],
-                    "+".join(fact.get("dimensions", [])),
-                    "+".join(measure["name"] for measure in fact.get("measures", [])),
-                    "+".join(fact.get("source_tables", [])),
-                ])
+                writer.writerow(["模型名", table_name])
+                writer.writerow(["中文名", f"事实表-{fact.get('display_process', fact['business_process'])}"])
+                writer.writerow(["数据来源", "+".join(fact.get("source_tables", [])) or "ODS"])
+                writer.writerow(["主题", fact["domain"]])
+                writer.writerow(["层级", "DWD"])
+                writer.writerow(["说明", f"事实表: {fact['domain']}-{fact.get('display_process', fact['business_process'])}"])
+                writer.writerow(["粒度", fact["grain"]])
+                writer.writerow(["事实类型", fact["fact_type"]])
+                writer.writerow(["分区字段", "pt"])
+                writer.writerow(["字段", "字段名", "字段类型", "字段说明", "数据来源", "是否为空", "维度", "度量"])
+                writer.writerow(["", fact["business_key"], "STRING", f"{fact['business_process']}业务键", "首取", "N", "", ""])
+                for dim in fact.get("dimension_refs", []):
+                    writer.writerow([
+                        "",
+                        f"{dim['entity']}_sk",
+                        "BIGINT",
+                        f"关联 dim_{dim['entity']} 的代理键",
+                        dim["business_key"],
+                        "N",
+                        "Y",
+                        "",
+                    ])
+                for measure in fact.get("measures", []):
+                    writer.writerow([
+                        "",
+                        measure["name"],
+                        measure.get("type") or "DECIMAL(18,2)",
+                        measure.get("description") or measure["name"],
+                        measure.get("source_field", measure["name"]),
+                        "N",
+                        "",
+                        "Y",
+                    ])
+                writer.writerow(["", "is_valid", "INT", "是否有效记录", "ETL", "N", "", ""])
+                writer.writerow(["", "etl_insert_time", "TIMESTAMP", "ETL插入时间", "ETL", "N", "", ""])
+                writer.writerow(["", "etl_update_time", "TIMESTAMP", "ETL更新时间", "ETL", "Y", "", ""])
+                writer.writerow(["", "source_system", "STRING", "来源系统", "ETL", "N", "", ""])
+                writer.writerow(["", "pt", "STRING", "分区日期", "ETL", "N", "", ""])
+                writer.writerow([])
+                writer.writerow([])
 
     def _generate_field_mapping_csv(self, csv_file: Path, dim_designs: Dict[str, Dict], dwd_designs: Dict[str, Dict]) -> None:
         with open(csv_file, "w", newline="", encoding="utf-8") as f:

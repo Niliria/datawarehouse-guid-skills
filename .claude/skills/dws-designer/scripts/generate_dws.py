@@ -250,13 +250,13 @@ def main() -> int:
     parser.add_argument(
         "--input-dwd-csv",
         type=Path,
-        default=Path("output/cdm-modeling/docs/dwd_list.csv"),
+        default=Path(".claude/skills/cdm_modeling/output/cdm-modeling/docs/dwd_list.csv"),
         help="DWD 元数据清单 CSV 文件",
     )
     parser.add_argument(
         "--input-dim-csv",
         type=Path,
-        default=Path("output/cdm-modeling/docs/dim_list.csv"),
+        default=Path(".claude/skills/cdm_modeling/output/cdm-modeling/docs/dim_list.csv"),
         help="DIM 元数据清单 CSV 文件，仅用于校验和扩展",
     )
     parser.add_argument(

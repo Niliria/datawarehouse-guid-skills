@@ -29,6 +29,44 @@ def read_csv(path: Path) -> List[Dict[str, str]]:
         return list(csv.DictReader(f))
 
 
+def read_field_catalog(path: Path) -> List[Dict[str, object]]:
+    if not path.exists():
+        return []
+
+    text = path.read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+    sections = [section for section in text.split("\n\n") if section.strip()]
+    models: List[Dict[str, object]] = []
+
+    for section in sections:
+        rows = list(csv.reader(section.strip().splitlines()))
+        if not rows or len(rows[0]) < 2 or rows[0][0].strip() != "模型名":
+            continue
+
+        meta: Dict[str, str] = {"模型名": rows[0][1].strip()}
+        fields: List[Dict[str, str]] = []
+        header: List[str] | None = None
+
+        for row in rows[1:]:
+            if not row or not any(cell.strip() for cell in row):
+                continue
+            key = row[0].strip()
+            if key == "字段":
+                header = [cell.strip() for cell in row]
+                continue
+            if header is None:
+                if len(row) >= 2 and key:
+                    meta[key] = row[1].strip()
+                continue
+            padded = [cell.strip() for cell in row] + [""] * max(0, len(header) - len(row))
+            field = {header[i]: padded[i] for i in range(len(header))}
+            if field.get("字段名"):
+                fields.append(field)
+
+        models.append({"meta": meta, "fields": fields})
+
+    return models
+
+
 def validate_output_dir(output_dir: Path) -> tuple[List[str], List[str]]:
     errors: List[str] = []
     warnings: List[str] = []
@@ -46,30 +84,38 @@ def validate_output_dir(output_dir: Path) -> tuple[List[str], List[str]]:
         if not path.exists():
             errors.append(f"missing docs file: {path}")
 
-    dim_rows = read_csv(docs_dir / "dim_list.csv")
-    dwd_rows = read_csv(docs_dir / "dwd_list.csv")
+    dim_models = read_field_catalog(docs_dir / "dim_list.csv")
+    dwd_models = read_field_catalog(docs_dir / "dwd_list.csv")
     field_rows = read_csv(docs_dir / "field_mapping.csv")
     dependency_rows = read_csv(docs_dir / "dependency.csv")
 
-    if not dim_rows:
-        errors.append("dim_list.csv has no rows")
-    if not dwd_rows:
-        warnings.append("dwd_list.csv has no rows")
+    if not dim_models:
+        errors.append("dim_list.csv has no field-level model sections")
+    if not dwd_models:
+        warnings.append("dwd_list.csv has no field-level model sections")
     if not field_rows:
         warnings.append("field_mapping.csv has no rows")
     if not dependency_rows:
         warnings.append("dependency.csv has no rows")
 
-    dim_tables = {row.get("table_name", "") for row in dim_rows}
-    for row in dwd_rows:
-        dimensions = [item for item in row.get("dimensions", "").split("+") if item]
-        for dim in dimensions:
-            if f"dim_{dim}" not in dim_tables:
-                errors.append(f"DWD {row.get('table_name')} references missing DIM: dim_{dim}")
-        if row.get("fact_type") != "factless" and not row.get("measures"):
-            errors.append(f"DWD {row.get('table_name')} has no measures")
-        if not row.get("grain"):
-            errors.append(f"DWD {row.get('table_name')} has no grain")
+    dim_tables = {str(model["meta"].get("模型名", "")) for model in dim_models}
+    for model in dwd_models:
+        meta = model["meta"]
+        fields = model["fields"]
+        table_name = str(meta.get("模型名", ""))
+        dimension_fields = [field for field in fields if field.get("维度", "").strip().upper() == "Y"]
+        measure_fields = [field for field in fields if field.get("度量", "").strip().upper() == "Y"]
+
+        for field in dimension_fields:
+            field_name = field.get("字段名", "")
+            if field_name.endswith("_sk"):
+                dim_table = f"dim_{field_name[:-3]}"
+                if dim_table not in dim_tables:
+                    errors.append(f"DWD {table_name} references missing DIM: {dim_table}")
+        if meta.get("事实类型") != "factless" and not measure_fields:
+            errors.append(f"DWD {table_name} has no measure fields")
+        if not meta.get("粒度"):
+            errors.append(f"DWD {table_name} has no grain")
 
     sql_files = list((ddl_dir).glob("**/*.sql")) + list((etl_dir).glob("**/*.sql"))
     if not sql_files:
