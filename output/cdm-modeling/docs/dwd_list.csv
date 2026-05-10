@@ -1,0 +1,2 @@
+表名,业务过程,粒度,维度数,度量数,源ODS表,估计大小,备注
+dwd_sales_order_di,门店销售,订单,4,2,ods_sales_order_di,large,销售订单事实表

@@ -1,0 +1,12 @@
+input:
+  bus_matrix_doc: "examples/basic/bus_matrix_doc.yaml"
+  ods_metadata_doc: "examples/basic/ods_metadata_doc.yaml"
+
+output:
+  target_dir: "output/cdm-modeling"
+
+modeling:
+  default_scd_type: 1
+  default_fact_type: "transaction"
+  generate_ddl: true
+  generate_etl: true

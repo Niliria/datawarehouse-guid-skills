@@ -1,0 +1,5 @@
+表名,实体,SCD类型,业务键,源ODS表,估计大小,生命周期(天),备注
+dim_product,product,Type II,product_id,ods_product_master_df,small,9999,商品维度拉链表
+dim_shop,shop,Type I,shop_id,ods_shop_master_df,small,9999,店铺维度全量覆盖
+dim_customer,customer,Type II,customer_id,ods_customer_master_df,medium,9999,客户维度拉链表
+dim_date,date,Type I,calendar_date,算法生成,small,9999,标准日期维度

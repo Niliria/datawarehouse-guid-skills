@@ -1,0 +1,6 @@
+层级,源表,依赖表,加载顺序,说明
+DIM,dim_product,ods_product_master_df,1,商品维度从ODS加载(SCD II)
+DIM,dim_shop,ods_shop_master_df,1,店铺维度从ODS加载(SCD I)
+DIM,dim_customer,ods_customer_master_df,1,客户维度从ODS加载(SCD II)
+DIM,dim_date,算法生成,1,日期维度算法生成
+DWD,dwd_sales_order_di,ods_sales_order_di+dim_shop+dim_date+dim_customer,2,销售事实表JOIN维度加载

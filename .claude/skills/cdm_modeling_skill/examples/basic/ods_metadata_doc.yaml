@@ -1,0 +1,61 @@
+tables:
+  - table_name: ods_sales_order_detail
+    domain: 销售
+    description: 门店销售订单明细
+    fields:
+      - name: order_detail_id
+        type: STRING
+        description: 订单明细ID
+        classification: business_key
+      - name: customer_id
+        type: STRING
+        description: 客户ID
+        classification: foreign_key
+        dimension: 客户
+      - name: customer_name
+        type: STRING
+        description: 客户名称
+        classification: dimension_attribute
+        dimension: 客户
+      - name: customer_level
+        type: STRING
+        description: 客户等级
+        classification: dimension_attribute
+        dimension: 客户
+      - name: product_id
+        type: STRING
+        description: 商品ID
+        classification: foreign_key
+        dimension: 商品
+      - name: product_name
+        type: STRING
+        description: 商品名称
+        classification: dimension_attribute
+        dimension: 商品
+      - name: shop_id
+        type: STRING
+        description: 店铺ID
+        classification: foreign_key
+        dimension: 店铺
+      - name: shop_name
+        type: STRING
+        description: 店铺名称
+        classification: dimension_attribute
+        dimension: 店铺
+      - name: sale_date
+        type: STRING
+        description: 销售日期
+        classification: date_key
+        dimension: 日期
+      - name: sale_qty
+        type: BIGINT
+        description: 销售数量
+        classification: measure
+      - name: sale_amount
+        type: DECIMAL(18,2)
+        description: 销售金额
+        classification: measure
+      - name: update_time
+        type: TIMESTAMP
+        description: 更新时间
+        classification: update_time
