@@ -1,166 +1,156 @@
 """
 generate_dwd.py - DWD事实表生成模块
 ========================================
-根据业务流程生成DWD事实表设计，输出DDL脚本
+根据上游总线矩阵解析结果生成 DWD 事实表设计和 DDL。
 """
 
+import re
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, Any, List
+
 import yaml
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
 
 class FactTableGenerator:
-    """事实表生成器"""
-    
-    def __init__(self, bus_matrix: Dict, dim_designs: Dict, rules_dir: Path, templates_dir: Path, output_dir: Path = None, logger=None):
-        self.bus_matrix = bus_matrix
+    """事实表生成器。"""
+
+    def __init__(
+        self,
+        upstream_model: Dict[str, Any],
+        dim_designs: Dict[str, Dict],
+        modeling_config: Dict[str, Any],
+        rules_dir: Path,
+        templates_dir: Path,
+        output_dir: Path = None,
+        logger=None,
+    ):
+        self.upstream_model = upstream_model
         self.dim_designs = dim_designs
+        self.modeling_config = modeling_config
         self.rules_dir = Path(rules_dir)
         self.templates_dir = Path(templates_dir)
         self.output_dir = Path(output_dir) if output_dir else None
         self.logger = logger
-        self.dwd_rules = self._load_rules('dwd_rules.yaml')
-        self.naming_rules = self._load_rules('naming_rules.yaml')
-    
+        self.dwd_rules = self._load_rules("dwd_rules.yaml")
+        self.naming_rules = self._load_rules("naming_rules.yaml")
+
     def _load_rules(self, rule_file: str) -> Dict:
-        """加载规则文件"""
         rule_path = self.rules_dir / rule_file
         if rule_path.exists():
-            with open(rule_path, 'r', encoding='utf-8') as f:
-                return yaml.safe_load(f)
+            with open(rule_path, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f) or {}
         return {}
-    
+
     def generate(self) -> Dict[str, Dict]:
-        """
-        生成DWD事实表设计，并输出DDL脚本
-        
-        根据总线矩阵中的业务过程生成对应的事实表
-        
-        Returns:
-            Dict: {
-                'dwd_sales_order_di': {
-                    'table_name': 'dwd_sales_order_di',
-                    'domain': 'sales',
-                    'business_process': 'order',
-                    'dimensions': ['customer', 'product', 'shop', 'date'],
-                    'measures': [
-                        {'name': 'order_amount', 'type': 'DECIMAL(18,2)', 'aggregation': 'SUM'},
-                        ...
-                    ],
-                    'grain': 'order_id'
-                },
-                ...
-            }
-        """
-        
-        dwd_designs = {}
-        
-        # 从总线矩阵生成事实表
-        for key, process_info in self.bus_matrix.items():
-            
-            domain = process_info['domain']
-            process = process_info['business_process']
-            dimensions = process_info['dimensions']
-            
-            # 生成表名 (e.g., dwd_sales_order_di)
-            domain_en = self._normalize_name(domain)
-            process_en = self._normalize_name(process)
-            table_name = f"dwd_{domain_en}_{process_en}_di"
-            
-            # 构建维度外键列表
-            dim_fks = [self._normalize_name(d) for d in dimensions]
-            # 总是添加日期维度
-            if 'date' not in dim_fks:
-                dim_fks.append('date')
-            
-            # 构建度量值列表 (示例)
-            measures = [
-                {'name': 'quantity', 'type': 'BIGINT', 'description': '数量', 'aggregation': 'SUM'},
-                {'name': 'amount', 'type': 'DECIMAL(18,2)', 'description': '金额', 'aggregation': 'SUM'},
+        dwd_designs: Dict[str, Dict] = {}
+        for process in self.upstream_model.get("processes", []):
+            domain = self._normalize_name(process.get("domain", "default"))
+            process_name = self._normalize_name(process.get("business_process", "process"))
+            table_name = f"dwd_{domain}_{process_name}_di"
+            dimensions = self._normalize_dimensions(process.get("dimensions", []))
+            dimension_refs = [
+                {"entity": dim, "business_key": self._dimension_business_key(dim)}
+                for dim in dimensions
             ]
-            
-            # 创建事实表设计
+            measures = self._normalize_measures(process.get("measures", []))
+
             dwd_designs[table_name] = {
-                'table_name': table_name,
-                'domain': domain_en,
-                'business_process': process_en,
-                'business_key': f'{process_en}_id',
-                'dimensions': dim_fks,
-                'measures': measures,
-                'grain': f'{process_en}_id',
-                'estimated_size': 'large'  # 事实表通常较大
+                "table_name": table_name,
+                "domain": domain,
+                "business_process": process_name,
+                "display_process": process.get("business_process", process_name),
+                "business_key": self._derive_business_key(process_name, process.get("grain", "")),
+                "dimensions": dimensions,
+                "dimension_refs": dimension_refs,
+                "measures": measures,
+                "grain": process.get("grain") or self._derive_business_key(process_name, ""),
+                "fact_type": process.get("fact_type") or self.modeling_config.get("default_fact_type", "transaction"),
+                "source_tables": process.get("source_tables", []),
+                "estimated_size": "large",
             }
-            
             if self.logger:
-                dims_str = ', '.join(dim_fks)
-                self.logger.success(f"  ✓ {table_name}")
-                self.logger.info(f"      维度: {dims_str}")
-        
-        # 生成DDL脚本
+                self.logger.success(f"  {table_name} (measures={len(measures)}, dims={len(dimensions)})")
+
         if self.output_dir:
             self._generate_ddl(dwd_designs)
-        
         return dwd_designs
-    
+
     def _generate_ddl(self, dwd_designs: Dict[str, Dict]) -> None:
-        """生成事实表DDL脚本"""
-        output_dir = self.output_dir / 'ddl' / 'dwd'
+        output_dir = self.output_dir / "ddl" / "dwd"
         output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # 配置Jinja2环境
         env = Environment(loader=FileSystemLoader(str(self.templates_dir)))
-        
+
         try:
-            template = env.get_template('dwd_ddl.tpl')
+            template = env.get_template("dwd_ddl.tpl")
         except TemplateNotFound:
             if self.logger:
-                self.logger.warning(f"  ⚠ Template file not found: dwd_ddl.tpl")
+                self.logger.warning("Template file not found: dwd_ddl.tpl")
             return
-        
-        # 为每个事实表生成DDL
+
         for table_name, dwd_info in dwd_designs.items():
-            # 准备模板变量
             context = {
-                'table_name': table_name,
-                'entity': dwd_info['business_process'],
-                'domain': dwd_info['domain'],
-                'business_process': dwd_info['business_process'],
-                'grain': dwd_info['grain'],
-                'dimensions': [{'entity': d} for d in dwd_info['dimensions']],
-                'measures': dwd_info['measures'],
-                'table_comment': f"事实表: {dwd_info['domain']}-{dwd_info['business_process']}",
+                "table_name": table_name,
+                "entity": dwd_info["business_process"],
+                "domain": dwd_info["domain"],
+                "business_process": dwd_info["business_process"],
+                "business_key": dwd_info["business_key"],
+                "grain": dwd_info["grain"],
+                "dimensions": dwd_info["dimension_refs"],
+                "measures": dwd_info["measures"],
+                "table_comment": f"事实表: {dwd_info['domain']}-{dwd_info['display_process']}",
             }
-            
-            # 渲染模板
-            try:
-                sql = template.render(context)
-                
-                # 写出DDL文件
-                output_file = output_dir / f"{table_name}.sql"
-                with open(output_file, 'w', encoding='utf-8') as f:
-                    f.write(sql)
-                
-                if self.logger:
-                    self.logger.success(f"  ✓ Generated DDL: {output_file.name}")
-            except Exception as e:
-                if self.logger:
-                    self.logger.warning(f"  ⚠ Failed to render {table_name}: {e}")
-    
+            sql = template.render(context)
+            output_file = output_dir / f"{table_name}.sql"
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(sql)
+            if self.logger:
+                self.logger.success(f"  Generated DDL: {output_file.name}")
+
+    def _normalize_dimensions(self, dimensions: List[str]) -> List[str]:
+        normalized = [self._normalize_name(dim) for dim in dimensions]
+        if "date" not in normalized:
+            normalized.append("date")
+        return normalized
+
+    def _dimension_business_key(self, entity: str) -> str:
+        table_name = f"dim_{entity}"
+        if table_name in self.dim_designs:
+            return self.dim_designs[table_name].get("business_key", f"{entity}_id")
+        return f"{entity}_id"
+
+    def _normalize_measures(self, measures: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        result = []
+        for measure in measures:
+            result.append({
+                "name": measure.get("name") or self._normalize_name(measure.get("description", "measure")),
+                "source_field": measure.get("source_field") or measure.get("name"),
+                "type": measure.get("type") or "DECIMAL(18,2)",
+                "description": measure.get("description") or measure.get("name", ""),
+                "aggregation": measure.get("aggregation") or "SUM",
+            })
+        return result
+
+    def _derive_business_key(self, process_name: str, grain: str) -> str:
+        grain_en = self._normalize_name(grain)
+        if grain_en and grain_en != "default":
+            return f"{grain_en}_id"
+        return f"{process_name}_id"
+
     def _normalize_name(self, name: str) -> str:
-        """规范化名称为英文小写"""
         name_map = {
-            '销售': 'sales',
-            '门店': 'shop',
-            '库存': 'inventory',
-            '营销': 'marketing',
-            '订单': 'order',
-            '发货': 'shipment',
-            '支付': 'payment',
-            '客户': 'customer',
-            '商品': 'product',
-            '店铺': 'shop',
-            '日期': 'date',
-            '地区': 'region',
+            "销售": "sales",
+            "库存": "inventory",
+            "门店销售": "shop_sales",
+            "订单明细": "order_detail",
+            "订单": "order",
+            "退货": "return",
+            "客户": "customer",
+            "商品": "product",
+            "店铺": "shop",
+            "门店": "shop",
+            "日期": "date",
+            "地区": "region",
         }
-        return name_map.get(name, name.lower())
+        raw = str(name).strip()
+        return name_map.get(raw, re.sub(r"[^a-zA-Z0-9_]+", "_", raw.lower()).strip("_") or "default")

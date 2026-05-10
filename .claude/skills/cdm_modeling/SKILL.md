@@ -2,162 +2,129 @@
 name: cdm-modeling
 description: >-
   This skill should be used when the user asks to "CDM建模", "DIM设计", "DWD设计",
-  "维度表生成", "事实表生成", "总线矩阵转DDL", "SCD策略", "拉链表", "星形模型",
-  "代理键生成", "ETL脚本生成", "建表语句生成",
-  or discusses CDM (Common Data Model) layer modeling based on Kimball dimension modeling methodology.
-version: 1.0.0
+  "读取总线矩阵文档生成模型", "读取ODS元数据解析文档", "维度表生成", "事实表生成",
+  "SCD策略", "拉链表", "星形模型", "代理键生成", "ETL脚本生成", "建表语句生成",
+  or discusses CDM layer modeling from upstream bus-matrix and ODS metadata analysis outputs.
+version: 1.3.0
 ---
 
 # CDM 建模 Skill
 
-基于《数据仓库工具箱》(Kimball) 维度建模方法论，从总线矩阵和 ODS 元数据快速生成 DIM/DWD 层的数据模型、DDL 建表语句和 ETL SQL。
+读取上游 skill 已经产出的总线矩阵解析文档和 ODS 元数据解析文档，生成 CDM 层 DIM/DWD 数据模型、DDL 建表语句、ETL SQL、字段映射清单和校验报告。
 
-## 核心能力
+## 使用边界
 
-- **自动解析总线矩阵** - 识别业务过程、一致性维度关系
-- **智能生成 DIM 维度表** - 支持 SCD Type I/II/III 策略
-- **智能生成 DWD 事实表** - 星形结构、维度外键、度量值
-- **自动输出 DDL 脚本** - 建表语句、分区策略、ORC 存储格式
-- **自动输出 ETL 脚本** - 数据加载、SCD 处理、质量检查
-- **生成模型清单** - CSV 格式的表清单和元数据
+将本 skill 用于“上游解析已经完成”的建模场景。不要让本 skill 直接重新解析原始 ODS DDL 或手工推导总线矩阵；上游文档才是事实来源。
 
-## 输入约定
+必需输入：
+- **总线矩阵文档**：包含数据域、业务过程、粒度、一致性维度、度量、源表等说明。
+- **ODS 元数据解析文档**：包含 ODS 表、字段、类型、注释、主键/外键、时间字段、字段分类等说明。
 
-### 总线矩阵 (bus_matrix.csv)
+可选输入：
+- **建模配置**：指定默认 SCD、默认事实类型、输出目录、是否生成 DDL/ETL。
 
-必需输入，定义业务过程与一致性维度的关系：
+## 五步流程总览
 
-```csv
-数据域,业务过程,粒度,一致性维度,备注
-销售,门店销售,订单,店铺+日期+商品+客户,订单粒度
-库存,库存变动,库存变动,店铺+日期+商品,
-商品,商品管理,商品,商品,维度表
+| 步骤 | 核心目标 | 关键产出 | Reference |
+|-----|---------|---------|-----------|
+| 第一步 | 读取并校验上游文档 | 统一建模上下文、输入告警 | `references/step1-upstream-input.md` |
+| 第二步 | 生成 DIM 维度设计 | DIM 设计、业务键、属性、SCD 策略 | `references/step2-dim-design.md` |
+| 第三步 | 生成 DWD 事实设计 | DWD 设计、粒度、维度外键、度量 | `references/step3-dwd-design.md` |
+| 第四步 | 渲染 DDL/ETL 与清单 | SQL、模型清单、字段映射、依赖清单 | `references/step4-generation.md` |
+| 第五步 | 执行模型门禁校验 | `validation_report.md`、校验状态 | `references/step5-validation.md` |
+
+流程主线：上游文档 → 统一建模上下文 → DIM → DWD → DDL/ETL/docs → 校验报告。
+
+## 推荐输入格式
+
+优先使用 YAML 或 JSON 格式，因为字段结构稳定，最适合自动生成：
+
+```yaml
+processes:
+  - domain: 销售
+    business_process: 门店销售
+    grain: 订单明细
+    fact_type: transaction
+    dimensions: [客户, 商品, 店铺, 日期]
+    measures:
+      - name: quantity
+        source_field: sale_qty
+        type: BIGINT
+        description: 销售数量
+        aggregation: SUM
+      - name: amount
+        source_field: sale_amount
+        type: DECIMAL(18,2)
+        description: 销售金额
+        aggregation: SUM
+    source_tables: [ods_sales_order_detail]
 ```
 
-### ODS 元数据 (ods_metadata/*.sql)
-
-可选输入，提供源表字段信息用于智能识别维度属性和度量值。
+Markdown 文档也可以使用，但应包含标准表格列名，例如 `数据域`、`业务过程`、`粒度`、`一致性维度`、`度量`、`源表`。
 
 ## 输出约定
 
-执行后产出写入项目 `output/cdm-modeling/` 目录：
+默认输出写入 `output/cdm-modeling/`：
 
-```
+```text
 output/cdm-modeling/
 ├── ddl/
-│   ├── dim/                     # DIM 建表 SQL
-│   └── dwd/                     # DWD 建表 SQL
+│   ├── dim/
+│   └── dwd/
 ├── etl/
-│   ├── dim/                     # DIM ETL 脚本
-│   └── dwd/                     # DWD ETL 脚本
+│   ├── dim/
+│   └── dwd/
 └── docs/
-    ├── dim_list.csv             # 维度表清单
-    ├── dwd_list.csv             # 事实表清单
-    └── dependency.csv           # 调度依赖
+    ├── dim_list.csv
+    ├── dwd_list.csv
+    ├── field_mapping.csv
+    ├── dependency.csv
+    ├── model_design.md
+    └── validation_report.md
 ```
 
-## SCD 策略选择
+## 建模流程
 
-| SCD 类型 | 适用场景 | 特点 |
-|---------|---------|------|
-| Type I | 无需历史追踪 | 直接覆盖，无版本字段 |
-| Type II | 需完整历史追踪 | 拉链表，含 begin_date/end_date/is_active |
-| Type III | 仅需前一值对比 | 含 current_value/prior_value |
+1. 读取 `skill_config.yaml` 或命令行传入的 `--config`。
+2. 解析上游总线矩阵文档，提取数据域、业务过程、粒度、维度、度量、源表。
+3. 解析上游 ODS 元数据文档，提取字段类型、字段注释、字段分类、主键、外键、时间字段。
+4. 合并两个上游来源，形成统一建模上下文。
+5. 生成 DIM 维度表设计，优先使用上游文档中的维度属性和业务键。
+6. 生成 DWD 事实表设计，优先使用总线矩阵文档中的度量和粒度。
+7. 渲染 DDL、ETL、模型清单、字段映射、依赖清单和校验报告。
 
-**决策矩阵**：
+## 关键规则
 
-| 业务需求 | 数据质量 | 表大小 | 推荐 SCD |
-|---------|---------|--------|---------|
-| 需要历史 | 有时间戳 | <100万行 | Type II |
-| 需要历史 | 有时间戳 | >100万行 | Type II+分区 |
-| 仅需前值 | 有时间戳 | <100万行 | Type III |
-| 不需历史 | 任意 | 任意 | Type I |
+- 维度属性不得再硬编码为 `{entity}_name` 和 `{entity}_code`；必须优先来自 ODS 元数据解析结果。
+- 事实表度量不得再硬编码为 `quantity` 和 `amount`；必须优先来自总线矩阵文档的度量定义。
+- SCD 策略优先级：显式配置或上游文档 > ODS 时间字段和状态字段推断 > 默认策略。
+- DWD 表粒度必须来自总线矩阵文档；缺失时写入 `validation_report.md`。
+- 每个 DWD 事实表必须至少有一个度量；缺失时仍可生成结构草案，但必须在校验报告中标记。
+- 每个维度必须有业务键；无法从上游文档或 ODS 元数据推断时使用 `{entity}_id` 并记录告警。
 
-## DIM 维度表设计规则
+## 详细资料
 
-### 必需元素
+Reference files:
+- **`references/skill_usage.md`** - 完整使用指南和输入格式说明
+- **`references/mandatory-modeling-rules.md`** - 必须遵守的 CDM 建模规则
+- **`references/field-classification-rules.md`** - 字段分类、类型映射和质量规则
+- **`references/scd-lifecycle-rules.md`** - SCD 生命周期和增量类型规则
+- **`references/anti-patterns.md`** - 建模反模式和禁止项
+- **`references/step1-upstream-input.md`** - 上游输入契约与解析规则
+- **`references/step2-dim-design.md`** - DIM 设计步骤、产物和验收标准
+- **`references/step3-dwd-design.md`** - DWD 设计步骤、产物和验收标准
+- **`references/step4-generation.md`** - DDL/ETL/docs 生成规则
+- **`references/step5-validation.md`** - 模型门禁和校验报告规则
+- **`references/dim_design_guide.md`** - DIM 维度表设计指南
+- **`references/dwd_design_guide.md`** - DWD 事实表设计指南
 
-1. **业务键** (`{entity}_id`) - 来自 ODS 的唯一标识
-2. **代理键** (`{entity}_sk`) - 系统生成，用于事实表外键
-3. **维度属性** - 描述性字段（名称、类别、层级等）
-4. **SCD 字段** - 按策略添加版本追踪字段
+Legacy rule files:
+- **`references/legacy-rules/*.yaml`** - 历史 YAML 规则资料。当前主流程不直接执行这些 YAML；优先读取上述 Markdown 规则文档。
 
-### 建表模板
-
-```sql
-CREATE TABLE IF NOT EXISTS dim_customer (
-    -- 维度键
-    customer_sk BIGINT COMMENT '代理键(维度主键)',
-    customer_id STRING COMMENT '业务键(来自ODS)',
-    
-    -- 维度属性
-    customer_name STRING COMMENT '客户名称',
-    customer_level STRING COMMENT '客户等级',
-    
-    -- SCD II 字段(可选)
-    begin_date STRING COMMENT '生效日期(YYYY-MM-DD)',
-    end_date STRING COMMENT '失效日期(当前记录为9999-12-31)',
-    is_active INT COMMENT '是否当前记录(1=当前,0=历史)',
-    
-    -- 审计字段
-    etl_insert_time TIMESTAMP COMMENT 'ETL插入时间'
-)
-PARTITIONED BY (pt STRING COMMENT '分区日期')
-STORED AS ORC
-TBLPROPERTIES ('orc.compress'='SNAPPY');
-```
-
-## DWD 事实表设计规则
-
-### 必需元素
-
-1. **事实键** - 业务键 + 代理键
-2. **维度外键** - 指向各 DIM 表的 `{dim}_sk`
-3. **度量值** - 可聚合的数值字段（数量、金额）
-4. **业务标志** - 记录有效性标识
-
-### 建表模板
-
-```sql
-CREATE TABLE IF NOT EXISTS dwd_sales_order_di (
-    -- 事实键
-    order_id STRING COMMENT '业务键(来自ODS)',
-    order_sk BIGINT COMMENT '代理键(事实主键)',
-    
-    -- 维度外键
-    customer_sk BIGINT COMMENT '→ dim_customer(外键)',
-    product_sk BIGINT COMMENT '→ dim_product(外键)',
-    shop_sk BIGINT COMMENT '→ dim_shop(外键)',
-    date_sk BIGINT COMMENT '→ dim_date(外键)',
-    
-    -- 度量值
-    quantity BIGINT COMMENT '数量(聚合:SUM)',
-    amount DECIMAL(18,2) COMMENT '金额(聚合:SUM)',
-    
-    -- 审计字段
-    etl_insert_time TIMESTAMP COMMENT 'ETL插入时间'
-)
-PARTITIONED BY (pt STRING COMMENT '分区日期')
-STORED AS ORC;
-```
-
-## 详细规格
-
-For complete field definitions, SCD decision tree, naming conventions, and SQL templates:
-- **`references/dim_design_guide.md`** — DIM 维度表设计指南
-- **`references/dwd_design_guide.md`** — DWD 事实表设计指南
-- **`references/skill_usage.md`** — 完整使用指南
-
-For rule definitions:
-- **`rules/naming_rules.yaml`** — 命名规范
-- **`rules/dim_rules.yaml`** — DIM 建模规则（含 SCD 决策矩阵）
-- **`rules/dwd_rules.yaml`** — DWD 建模规则
-- **`rules/type_mapping.yaml`** — 字段类型映射
-- **`rules/lifecycle_rules.yaml`** — SCD 生命周期规则
-
-For SQL templates:
-- **`templates/dim_ddl.tpl`** — DIM 建表模板
-- **`templates/dwd_ddl.tpl`** — DWD 建表模板
-- **`templates/dim_etl.tpl`** — DIM ETL 模板
-- **`templates/dwd_etl.tpl`** — DWD ETL 模板
-- **`templates/scd_type2.tpl`** — SCD II 拉链表模板
+Scripts:
+- **`scripts/main.py`** - 主入口
+- **`scripts/parse_upstream_outputs.py`** - 上游总线矩阵和 ODS 元数据文档解析
+- **`scripts/generate_dim.py`** - DIM 设计和 DDL 生成
+- **`scripts/generate_dwd.py`** - DWD 设计和 DDL 生成
+- **`scripts/generate_etl.py`** - ETL 脚本生成
+- **`scripts/validate_model.py`** - 生成产物门禁校验

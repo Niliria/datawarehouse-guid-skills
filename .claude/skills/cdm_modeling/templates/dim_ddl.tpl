@@ -9,7 +9,7 @@
 CREATE TABLE IF NOT EXISTS {{ table_name }} (
     -- 维度键
     {{ entity }}_sk BIGINT COMMENT '{{ entity }}代理键(PK)',
-    {{ business_key }} BIGINT COMMENT '{{ entity }}业务键(来自ODS)',
+    {{ business_key }} STRING COMMENT '{{ entity }}业务键(来自上游ODS元数据解析文档)',
     
     -- 维度属性
     {% for attr in attributes %}
@@ -30,7 +30,7 @@ TBLPROPERTIES ('orc.compress'='SNAPPY');
 CREATE TABLE IF NOT EXISTS {{ table_name }} (
     -- 维度键
     {{ entity }}_sk BIGINT COMMENT '{{ entity }}代理键(PK)',
-    {{ business_key }} BIGINT COMMENT '{{ entity }}业务键(来自ODS)',
+    {{ business_key }} STRING COMMENT '{{ entity }}业务键(来自上游ODS元数据解析文档)',
     
     -- 维度属性
     {% for attr in attributes %}
@@ -56,7 +56,7 @@ TBLPROPERTIES ('orc.compress'='SNAPPY');
 CREATE TABLE IF NOT EXISTS {{ table_name }} (
     -- 维度键
     {{ entity }}_sk BIGINT COMMENT '{{ entity }}代理键(PK)',
-    {{ business_key }} BIGINT COMMENT '{{ entity }}业务键(来自ODS)',
+    {{ business_key }} STRING COMMENT '{{ entity }}业务键(来自上游ODS元数据解析文档)',
     
     -- 当前值属性
     {% for attr in attributes %}

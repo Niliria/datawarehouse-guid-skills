@@ -532,7 +532,7 @@ CREATE TABLE bridge_customer_tag (
 ## 📞 下一步
 
 - 📖 参考 `docs/dwd_design_guide.md` 了解事实表设计
-- ⚙️ 查看 `rules/dim_rules.yaml` 了解详细规则
+- ⚙️ 查看 `references/mandatory-modeling-rules.md`、`references/field-classification-rules.md` 和 `references/scd-lifecycle-rules.md` 了解当前强制规则
 - 🚀 运行 `python scripts/main.py` 生成你的维度表
 
 ---

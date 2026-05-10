@@ -6,7 +6,7 @@
 
 CREATE TABLE IF NOT EXISTS {{ table_name }} (
     -- 事实键
-    {{ entity }}_id STRING COMMENT '{{ entity }}业务键(来自ODS)',
+    {{ business_key }} STRING COMMENT '{{ entity }}业务键(来自上游总线矩阵粒度)',
     {{ entity }}_sk BIGINT COMMENT '{{ entity }}代理键(事实主键)',
 
     -- 维度外键（包含所有维度：业务维度+日期维度）

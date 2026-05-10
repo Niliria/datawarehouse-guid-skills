@@ -582,7 +582,7 @@ TBLPROPERTIES (
 ## 📞 下一步
 
 - 📖 参考 `docs/dim_design_guide.md` 了解维度表设计
-- ⚙️ 查看 `rules/dwd_rules.yaml` 了解详细规则
+- ⚙️ 查看 `references/mandatory-modeling-rules.md`、`references/field-classification-rules.md` 和 `references/anti-patterns.md` 了解当前强制规则
 - 🚀 运行 `python scripts/main.py` 生成你的事实表
 
 ---

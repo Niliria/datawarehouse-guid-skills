@@ -1,5 +1,70 @@
 # CDM建模 Skill 规则更新日志
 
+## 版本 1.3.0
+
+**日期**: 2026年5月8日
+
+### 规则整理
+
+- 将未接入主流程的 `rules/*.yaml` 迁移到 `references/legacy-rules/`，保留为历史资料。
+- 新增 `references/mandatory-modeling-rules.md`，沉淀必须遵守的 CDM 建模规则。
+- 新增 `references/field-classification-rules.md`，整理字段分类、类型映射和质量检查规则。
+- 新增 `references/scd-lifecycle-rules.md`，整理 SCD 生命周期和增量类型判断规则。
+- 新增 `references/anti-patterns.md`，整理输入、DIM、DWD、ETL 和文档反模式。
+- 更新 `SKILL.md`、`skill_usage.md` 和 step reference，使 Markdown 规则文档成为首选规则入口。
+
+---
+
+## 版本 1.2.1
+
+**日期**: 2026年5月8日
+
+### 清理
+
+- 删除未被主流程调用的旧 CSV 总线矩阵解析器 `scripts/parse_bus_matrix.py`。
+- 删除未被主流程引用的独立 SCD2 模板 `templates/scd_type2.tpl`。
+- 移除 `skill_usage.md` 中关于旧兼容解析器的说明。
+
+---
+
+## 版本 1.2.0
+
+**日期**: 2026年5月8日
+
+### 结构优化
+
+- 参考 `dwm-bus-matrix` 的组织方式，将 CDM 建模流程拆成五个 step reference。
+- 更新 `SKILL.md` 为“总览 + 五步流程 + 资源索引”的渐进披露结构。
+- 更新 `references/skill_usage.md`，补充五步流程和独立校验命令。
+
+### 校验能力
+
+- 新增 `scripts/validate_model.py`，支持对生成产物执行 docs、SQL 占位符、DIM/DWD 引用关系校验。
+- `scripts/main.py` 自动聚合输入告警、模型结构校验和文件产物校验，生成更完整的 `validation_report.md`。
+
+---
+
+## 版本 1.1.0
+
+**日期**: 2026年5月6日
+
+### 架构调整
+
+- 将主流程从直接读取 `bus_matrix.csv` 和 `ods_metadata/*.sql` 改为读取上游 skill 产出的总线矩阵解析文档和 ODS 元数据解析文档。
+- 新增 `scripts/parse_upstream_outputs.py`，支持 YAML、JSON、Markdown 表格三类输入。
+- 新增 skill 根目录 `skill_config.yaml`，并支持 `python scripts/main.py --config path/to/skill_config.yaml`。
+- 新增 `examples/basic/`，提供最小可运行的上游文档样例。
+
+### 生成逻辑调整
+
+- DIM 属性改为来自 ODS 元数据解析文档中的 `dimension_attribute` 字段。
+- DWD 度量改为来自总线矩阵文档中的 `measures` 定义。
+- DWD 粒度改为来自总线矩阵文档中的 `grain`。
+- ETL 模板改为使用上游文档中的源表、源字段和维度业务键。
+- 新增 `field_mapping.csv`、`dependency.csv`、`model_design.md`、`validation_report.md` 输出。
+
+---
+
 **版本**: 1.0  
 **日期**: 2026年4月9日
 
