@@ -20,11 +20,11 @@ description: 负责DWS汇总层设计。严格遵循 `.claude/skills/dws-designe
      - 数据域划分
      - 业务过程清单
      - 一致性维度清单
-  3. `output/cdm_modeling_skill/docs/dwd_list.csv`
+  3. `output/cdm-modeling/docs/dwd_list.csv`
      - 维度字段（标注“维度”）
      - 度量字段（标注“度量”）
      - DWS 唯一合法数据源
-  4. `output/cdm_modeling_skill/docs/dim_list.csv`
+  4. `output/cdm-modeling/docs/dim_list.csv`
      - 一致性维度属性
      - 用于维度退化/冗余口径对齐
   5. `output/dws-designer/docs/dws_list.csv`（可选）
@@ -41,7 +41,7 @@ description: 负责DWS汇总层设计。严格遵循 `.claude/skills/dws-designe
 ## ️ 数据保护与读写权限
 
 **严禁修改上游输入文件**：
-- `output/dwm-bus-matrix/dwm_s4_bus_matrix.xlsx`、`output/cdm_modeling_skill/docs/dwd_list.csv` 和 `output/cdm_modeling_skill/docs/dim_list.csv` 是**只读**的。
+- `output/dwm-bus-matrix/dwm_s4_bus_matrix.xlsx`、`output/cdm-modeling/docs/dwd_list.csv` 和 `output/cdm-modeling/docs/dim_list.csv` 是**只读**的。
 - 禁止补充、修复、假设字段；缺失则终止并提示用户
 - 禁止使用矩阵存在但 DWD 不存在的业务过程
 
@@ -270,7 +270,7 @@ description: 负责DWS汇总层设计。严格遵循 `.claude/skills/dws-designe
 
 ### 示例 1：`output/dws-designer/docs/dws_list.csv` (字段级血缘)
 **用户输入**：“请为交易域生成 DWS 汇总层。”
-**AI 思考**：`output/dws-designer/docs/dws_list.csv` 不存在 -> 创建文件 -> 扫描 `output/cdm_modeling_skill/docs/dwd_list.csv` 发现 `dwd_fact_trade_order` -> 设计按天聚合表。
+**AI 思考**：`output/dws-designer/docs/dws_list.csv` 不存在 -> 创建文件 -> 扫描 `output/cdm-modeling/docs/dwd_list.csv` 发现 `dwd_fact_trade_order` -> 设计按天聚合表。
 
 **产出内容**：
 > 检测到 `output/dws-designer/docs/dws_list.csv` 不存在，正在初始化 DWS 设计文档...
