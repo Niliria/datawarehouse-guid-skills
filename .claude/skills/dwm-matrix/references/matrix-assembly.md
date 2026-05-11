@@ -1,4 +1,4 @@
-# ⑤ 组装总线矩阵：验证 + 交付物合成 + 优先级规划
+# 构建总线矩阵
 
 双重职责：验证第四步总线矩阵草稿"可跑通、可解释、可复用"，并将工作底稿合成为可直接指导建设的最终交付物。
 
@@ -8,15 +8,14 @@
 
 ## 1. 输入
 
-| 输入项 | 来源 Skill | 用途 |
-|--------|-----------|------|
-| `dwm_bp_business_process` | ② | 业务过程、粒度声明、事实表类型 |
-| `dwm_bp_metric` | ② | 度量归属底稿 → 合成 DWD spec |
-| `dwm_bp_subject_area` | ② | 主题域主数据 |
-| `dwm_dim_registry` | ③ | 一致性维度注册表 → 总线矩阵列头 + DIM spec |
-| `dwm_inv_field_profile` | ① | 字段元数据（FK 关系推导维度引用、ODS 溯源、退化维度/低基数属性推导） |
-| `dwm_inv_field_registry` | ① | 字段类型信息（`data_type`，填充 `ods_data_type`） |
-| `dwm_inv_ods_inventory` | ① | 同步模式（DWD 表名后缀依据） |
+| 输入项 | 来源 | 用途 |
+|--------|------|------|
+| `dwm_bp_business_process` | dwm-business-process | 业务过程、粒度声明、事实表类型 |
+| `dwm_bp_metric` | dwm-business-process | 度量归属底稿 → 合成 DWD spec |
+| `dwm_bp_subject_area` | dwm-business-process | 主题域主数据 |
+| `dwm_dim_registry` | dwm-dimension | 一致性维度注册表 → 总线矩阵列头 + DIM spec |
+| `output/metadata_parse/all_tables_metadata.xlsx` | 上游元数据解析 | 字段元数据（FK 关系推导维度引用、ODS 溯源、退化维度/低基数属性推导） |
+| `output/ods_generator/all_tables_metadata_ods.xlsx` | 上游 ODS 生成器 | ODS 表清单（DWD 表名后缀依据） |
 
 ---
 
@@ -38,7 +37,7 @@ SELECT
 FROM ${ods_table_name}
 WHERE dt = '${check_dt}';
 -- total_row_cnt = grain_distinct_cnt → 通过
--- 不一致 → 回退 ② 修正粒度声明
+-- 不一致 → 回退 dwm-business-process 修正粒度声明
 ```
 
 **逐列验证（一致性维度）**：
@@ -69,15 +68,15 @@ WHERE a.${fk_col} IS NOT NULL
 对每个业务过程（= 一张 DWD 事实表），生成字段级建设规格：
 
 1. **生成 DWD 表名**：`dwd_{subject_area_code_lowercase}_{bp_standard_name}_{suffix}`
-   - suffix 依据 `dwm_inv_ods_inventory.sync_mode`：`FULL` → `df`，`INCR` → `di`
+   - suffix 依据 `all_tables_metadata_ods.xlsx` 的同步模式推断：全量 → `df`，增量 → `di`
 2. **汇总字段**（按以下固定顺序，对应 `sort_order`）：
    - 粒度键（`grain_key`）：来自 `dwm_bp_business_process.粒度键`
-   - 维度外键（`fk`）：来自 `dwm_inv_field_profile WHERE field_role='foreign_key'`，通过 `ref_table` 映射到 `dwm_dim_registry`
-   - 退化维度（`degenerate_dim`）：来自 `dwm_inv_field_profile WHERE field_role='primary_key' AND is_surrogate='N'`（事实表中的天然业务键）
-   - 低基数离散属性（`low_card_attr`）：来自 `dwm_inv_field_profile WHERE field_role='low_cardinality'`（事实表中的低基数字段）
+   - 维度外键（`fk`）：来自 `all_tables_metadata.xlsx WHERE 字段角色='foreign_key'`，通过 `外键引用` 映射到 `dwm_dim_registry`
+   - 退化维度（`degenerate_dim`）：来自 `all_tables_metadata.xlsx WHERE 字段角色='primary_key'`（事实表中的天然业务键）
+   - 低基数离散属性（`low_card_attr`）：来自 `all_tables_metadata.xlsx WHERE 字段角色='low_cardinality'`（事实表中的低基数字段）
    - 度量字段（`measure`）：来自 `dwm_bp_metric`
-   - 业务时间（`business_time`）：来自 `dwm_inv_field_profile WHERE field_role='business_time'`
-3. **标注 ODS 溯源**：每个字段通过 `dwm_inv_field_profile` 关联 `ods_table_name` + `col_name`，通过 `dwm_inv_field_registry.data_type` 填充 `ods_data_type`
+   - 业务时间（`business_time`）：来自 `all_tables_metadata.xlsx WHERE 字段角色='business_time'`
+3. **标注 ODS 溯源**：每个字段通过 `all_tables_metadata.xlsx` 关联 `表名` + `字段名`，通过 `数据类型` 填充 `ods_data_type`
 4. **标注维度关联**：外键字段标注关联的 DIM 表（来自 `dwm_dim_registry.dimension_key`）
 
 ### 2.3 合成 DIM 维度表建设清单
@@ -89,7 +88,7 @@ WHERE a.${fk_col} IS NOT NULL
    - 粒度键（`pk`/`bk`）：来自 `dwm_dim_registry.grain_keys`
    - 维度属性（`attribute`）：来自 `dwm_dim_registry.dimension_columns`
    - **不包含** SCD 管理字段（`dw_start_date`/`dw_end_date`/`dw_is_current`），这些由 DIM 建设阶段 ETL 自动生成
-3. **标注 ODS 溯源**：通过 `dwm_inv_field_profile WHERE ods_table_name = source_dimension_table` 关联
+3. **标注 ODS 溯源**：通过 `all_tables_metadata.xlsx WHERE 表名 = source_dimension_table` 关联
 4. **标注 SCD 类型**：解析 `dwm_dim_registry.scd_columns`，逐字段标注 `SCD1`/`SCD2`/`SCD3`/`-`
 
 ### 2.4 合成主题域清单
@@ -105,11 +104,11 @@ WHERE a.${fk_col} IS NOT NULL
 ### 2.5 生成总线矩阵 Excel
 
 ```bash
-python .claude/skills/dwm-5-bus-matrix/scripts/write_bus_matrix.py \
+python .claude/skills/dwm-matrix/scripts/write_bus_matrix.py \
   --business-process output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv \
   --subject-area  output/dwm-bus-matrix/business-process/dwm_bp_subject_area.csv \
   --dim-registry  output/dwm-bus-matrix/dimension/dwm_dim_registry.csv \
-  --field-profile output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv \
+  --field-metadata output/metadata_parse/all_tables_metadata.xlsx \
   --output        output/dwm-bus-matrix/dwm_bus_matrix.xlsx \
   --version v1.0
 ```
@@ -163,11 +162,11 @@ python .claude/skills/dwm-5-bus-matrix/scripts/write_bus_matrix.py \
 | fact_type | 事实表类型 | 是 | `transaction` / `periodic_snapshot` / `accumulating_snapshot` / `factless` |
 | grain_statement | 粒度声明 | 是 | 来自 `dwm_bp_business_process.粒度声明` |
 | dwd_column_name | DWD 字段名 | 是 | DWD 层字段命名 |
-| dwd_column_comment | 字段中文说明 | 是 | 来自 `dwm_inv_field_profile.col_comment` 或人工修正 |
+| dwd_column_comment | 字段中文说明 | 是 | 来自 `all_tables_metadata.xlsx` 的 `字段注释填充` 或人工修正 |
 | column_role | 字段角色 | 是 | `grain_key` / `fk` / `degenerate_dim` / `low_card_attr` / `measure` / `business_time` |
-| ods_table_name | 来源 ODS 表 | 是 | 来自 `dwm_inv_field_profile.ods_table_name` |
-| ods_column_name | 来源 ODS 字段 | 是 | 来自 `dwm_inv_field_profile.col_name` |
-| ods_data_type | ODS 字段数据类型 | 是 | 来自 `dwm_inv_field_registry.data_type`，如 `varchar(255)` / `decimal(10,2)` |
+| ods_table_name | 来源 ODS 表 | 是 | 来自 `all_tables_metadata.xlsx` 的 `表名` |
+| ods_column_name | 来源 ODS 字段 | 是 | 来自 `all_tables_metadata.xlsx` 的 `字段名` |
+| ods_data_type | ODS 字段数据类型 | 是 | 来自 `all_tables_metadata.xlsx` 的 `数据类型`，如 `varchar(255)` / `decimal(10,2)` |
 | ref_dim_table | 关联 DIM 表 | 条件 | `column_role='fk'` 时必填，来自 `dwm_dim_registry.dimension_key` |
 | agg_suggest | 聚合建议 | 条件 | `column_role='measure'` 时必填 |
 | unit | 度量单位 | 条件 | `column_role='measure'` 时必填 |
@@ -188,12 +187,12 @@ python .claude/skills/dwm-5-bus-matrix/scripts/write_bus_matrix.py \
 | dim_table_name | DIM 表名 | 是 | 来自 `dwm_dim_registry.dimension_key` |
 | dimension_name | 维度中文名 | 是 | 来自 `dwm_dim_registry.dimension_name` |
 | dim_column_name | DIM 字段名 | 是 | DIM 层字段命名 |
-| dim_column_comment | 字段中文说明 | 是 | 来自 `dwm_inv_field_profile.col_comment` 或人工修正 |
+| dim_column_comment | 字段中文说明 | 是 | 来自 `all_tables_metadata.xlsx` 的 `字段注释填充` 或人工修正 |
 | column_role | 字段角色 | 是 | `pk`（代理键）/ `bk`（业务键）/ `attribute` |
 | scd_type | SCD 类型 | 条件 | `column_role='attribute'` 时必填：`SCD1` / `SCD2` / `SCD3` / `-` |
 | ods_table_name | 来源 ODS 表 | 是 | 来自 `dwm_dim_registry.source_dimension_table` |
-| ods_column_name | 来源 ODS 字段 | 是 | 来自 `dwm_inv_field_profile.col_name` |
-| ods_data_type | ODS 字段数据类型 | 是 | 来自 `dwm_inv_field_registry.data_type` |
+| ods_column_name | 来源 ODS 字段 | 是 | 来自 `all_tables_metadata.xlsx` 的 `字段名` |
+| ods_data_type | ODS 字段数据类型 | 是 | 来自 `all_tables_metadata.xlsx` 的 `数据类型` |
 | sort_order | 字段排序 | 是 | 整数，按 `pk→bk→attribute` |
 | remark | 备注 | 否 | 额外说明 |
 | updated_at | 更新时间 | 是 | 最近修改时间 |
@@ -295,18 +294,18 @@ Excel 结构：
 
 | 验证项 | 验证时机 | 检查规则 | 失败处理 |
 |--------|---------|---------|---------|
-| 粒度可聚合性 | DWD 建成后 | 聚合值与源系统差异率 ≤ 0.1% | 回退 ②③ |
-| 维度 JOIN 一致性 | DIM + DWD 联调时 | 生产 JOIN miss_rate ≤ 1% | 回退 ③ |
+| 粒度可聚合性 | DWD 建成后 | 聚合值与源系统差异率 ≤ 0.1% | 回退 dwm-business-process / dwm-dimension |
+| 维度 JOIN 一致性 | DIM + DWD 联调时 | 生产 JOIN miss_rate ≤ 1% | 回退 dwm-dimension |
 | 复杂属性拆解验证 | DWD 扁平化完成后 | 拆解覆盖率 + 数据正确性 | 修正拆解策略 |
 
 ### A.2 反馈触发与回退路径
 
 | 触发条件 | 回退目标 | 处理方式 |
 |---------|---------|---------|
-| DWD 聚合差异 > 0.1% | ② `dwm_bp_metric` | 检查度量归属或事实表类型 |
-| 生产 JOIN miss_rate 远高于采样 | ① `dwm_inv_field_profile` | 数据质量问题或 FK 关系误判 |
-| 新业务上线产生新业务过程 | ② `dwm_bp_business_process` | 走 ②~⑤ 增量流程 |
-| 口径争议升级 | ③ `dwm_dim_registry` | 重新做一致性校验 |
+| DWD 聚合差异 > 0.1% | dwm-business-process `dwm_bp_metric` | 检查度量归属或事实表类型 |
+| 生产 JOIN miss_rate 远高于采样 | 上游 `all_tables_metadata.xlsx` | 数据质量问题或 FK 关系误判 |
+| 新业务上线产生新业务过程 | dwm-business-process `dwm_bp_business_process` | 走增量流程 |
+| 口径争议升级 | dwm-dimension `dwm_dim_registry` | 重新做一致性校验 |
 
 ### A.3 变更管理
 
@@ -331,13 +330,14 @@ from write_csv import write_csv
 
 ```python
 # 读取所有上游产出
+from read_xlsx import read_xlsx
+
 table_profile = read_csv("output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv")  # 含事实表类型
 metrics      = read_csv("output/dwm-bus-matrix/business-process/dwm_bp_metric.csv")
 subject_area  = read_csv("output/dwm-bus-matrix/business-process/dwm_bp_subject_area.csv")
 dim_registry = read_csv("output/dwm-bus-matrix/dimension/dwm_dim_registry.csv")
-ods_inventory = read_csv("output/dwm-bus-matrix/inventory/dwm_inv_ods_inventory.csv")
-field_profile = read_csv("output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv")
-field_registry = read_csv("output/dwm-bus-matrix/inventory/dwm_inv_field_registry.csv")
+field_metadata = read_xlsx("output/metadata_parse/all_tables_metadata.xlsx")
+ods_tables = read_xlsx("output/ods_generator/all_tables_metadata_ods.xlsx")
 ```
 
 ### 合成脚本结构（大数据量时）

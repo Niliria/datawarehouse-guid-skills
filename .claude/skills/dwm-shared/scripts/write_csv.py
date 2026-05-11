@@ -4,13 +4,13 @@ CSV writer for dwm sub-skills outputs (shared tool).
 
 Usage:
     # Write from JSON stdin
-    echo '[{"col1":"v1","col2":"v2"}]' | python write_csv.py output/dwm-bus-matrix/inventory/dwm_inv_source_registry.csv
+    echo '[{"col1":"v1","col2":"v2"}]' | python write_csv.py output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv
 
     # Write from JSON file
-    python write_csv.py output/dwm-bus-matrix/inventory/dwm_inv_source_registry.csv --input data.json
+    python write_csv.py output/dwm-bus-matrix/business-process/dwm_bp_subject_area.csv --input data.json
 
     # Specify column order (optional, default uses first row's key order)
-    python write_csv.py output/dwm-bus-matrix/inventory/dwm_inv_source_registry.csv --columns "source_code,source_type,conn_info"
+    python write_csv.py output/dwm-bus-matrix/dimension/dwm_dim_registry.csv --columns "维度编码,维度中文名称,来源ODS表"
 """
 
 import csv

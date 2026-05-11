@@ -7,11 +7,11 @@ description: >-
 version: 1.0.0
 ---
 
-# 确认维度（Kimball Step 3）
+# 确认维度
 
 ## 定位
 
-对应 Kimball 四步法的**第三步**：确认维度。从每个业务过程中提取维度引用，收敛一致性维度，确认 SCD 策略。
+从每个业务过程中提取维度引用，收敛一致性维度，确认 SCD 策略。
 
 ## 职责边界
 
@@ -25,18 +25,18 @@ version: 1.0.0
 **不做什么**：
 - 不判事实表类型（→ dwm-business-process）
 - 不判度量归属（→ dwm-business-process）
-- 不做字段画像（→ dwm-data-inventory）
+- 不做字段画像（由上游 metadata_parse 提供）
 
 ## 输入依赖
 
-| 输入项 | 来源 Skill | 用途 |
-|--------|-----------|------|
+| 输入项 | 来源 | 用途 |
+|--------|------|------|
 | `dwm_bp_business_process` | dwm-business-process | 业务过程清单与粒度声明 |
-| `dwm_inv_field_profile` | dwm-data-inventory | 字段角色画像（外键、业务键等），用于自行识别维度候选表 |
-| `dwm_inv_ods_inventory` | dwm-data-inventory | ODS 表清单与行数 |
+| `output/metadata_parse/all_tables_metadata.xlsx` | 上游元数据解析 | 字段角色画像（外键、业务键等），用于自行识别维度候选表 |
+| `output/ods_generator/all_tables_metadata_ods.xlsx` | 上游 ODS 生成器 | ODS 表清单 |
 | `dwm_bp_subject_area` | dwm-business-process | 主题域定义 |
 
-> **维度候选识别**：从 `dwm_inv_field_profile` 中分析 FK 被引用关系，被多张事实表引用且自身 FK ≤ 1 的表为维度候选。不再依赖 ② 的表角色判定。
+> **维度候选识别**：从 `all_tables_metadata.xlsx` 的字段角色和外键引用列分析 FK 被引用关系，被多张事实表引用且自身 FK ≤ 1 的表为维度候选。
 
 ## 产出物
 

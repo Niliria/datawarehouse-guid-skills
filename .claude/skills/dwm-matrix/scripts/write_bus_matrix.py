@@ -3,7 +3,7 @@
 Bus matrix Excel generator for dwm-bus-matrix skill.
 
 Reads business-process/dimension CSV outputs and generates a cross-tab xlsx file.
-Bus matrix grid (fact × dimension) is derived from field_profile FK relations + dim_registry,
+Bus matrix grid (fact × dimension) is derived from field metadata FK relations + dim_registry,
 no separate fact-dim-ref CSV needed.
 
 Usage:
@@ -11,7 +11,7 @@ Usage:
         --business-process output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv \
         --subject-area  output/dwm-bus-matrix/business-process/dwm_bp_subject_area.csv \
         --dim-registry  output/dwm-bus-matrix/dimension/dwm_dim_registry.csv \
-        --field-profile output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv \
+        --field-metadata output/metadata_parse/all_tables_metadata.xlsx \
         --output        output/dwm-bus-matrix/dwm_bus_matrix.xlsx \
         --version       v1.0
 
@@ -24,9 +24,10 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
-# Reuse shared read_csv to ensure consistent BOM handling
+# Reuse shared read_csv/read_xlsx to ensure consistent handling
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../dwm-shared/scripts"))
 from read_csv import read_csv
+from read_xlsx import read_xlsx
 
 try:
     from openpyxl import Workbook
@@ -79,6 +80,7 @@ def build_matrix(
             "subject_area_name": sa_name,
             "business_process": tp.get("业务过程中文名称", tp.get("business_process", "")),
             "bp_standard_name": bp_name,
+            "dwd_table_name": f"dwd_{sa_code.lower()}_{bp_name}_df",
             "fact_type": tp.get("事实表类型", tp.get("fact_type", "")),
             "grain_statement": tp.get("粒度声明", tp.get("grain_statement", "")),
         })
@@ -99,20 +101,24 @@ def build_matrix(
         if src_table:
             src_to_dim[src_table] = dim.get(dim_key_field, "")
 
-    # Build cells: derive from field_profile FK relations
+    # Build cells: derive from field metadata FK relations
     # For each fact table's FK field, find its ref_table, map to dimension_key
+    # field_metadata uses Chinese column names: 表名, 字段角色, 外键引用
     cells: dict[tuple[str, str], str] = {}
     for fp in field_profile:
-        if fp.get("field_role") != "foreign_key":
+        role = fp.get("字段角色", fp.get("field_role", ""))
+        if role != "foreign_key":
             continue
-        ods_table = fp.get("ods_table_name", "")
+        ods_table = fp.get("表名", fp.get("ods_table_name", ""))
         bp_name = ods_to_bp.get(ods_table, "")
         if not bp_name:
             continue
-        # ref_table in field_profile is without ODS prefix (e.g. "user_info")
-        ref_table_short = fp.get("ref_table", "")
-        if not ref_table_short:
+        # 外键引用 contains referenced table info (e.g. "table_name.column_name" or "table_name(column_name)")
+        ref_info = fp.get("外键引用", fp.get("ref_table", ""))
+        if not ref_info:
             continue
+        # Extract ref_table from 外键引用 (handle formats: "table.col", "table(col)", or plain "table")
+        ref_table_short = ref_info.split(".")[0].split("(")[0].strip()
         # Try matching with ODS prefix
         for src_table, dim_key in src_to_dim.items():
             if src_table.endswith(ref_table_short):
@@ -153,7 +159,7 @@ def write_xlsx(
     center_align = Alignment(horizontal="center", vertical="center")
 
     # -- Header row --
-    fixed_headers = ["主题域", "业务过程", "业务过程代码", "粒度声明", "事实表类型"]
+    fixed_headers = ["主题域", "业务过程", "业务过程代码", "粒度声明", "事实表名称", "事实表类型"]
     dim_headers = [d.get(dim_name_field, d.get(dim_key_field, "")) for d in columns]
     all_headers = fixed_headers + dim_headers
 
@@ -172,6 +178,7 @@ def write_xlsx(
         sa_name = row_data["subject_area_name"]
         bp_cn = row_data["business_process"]
         bp_name = row_data["bp_standard_name"]
+        dwd_name = row_data["dwd_table_name"]
         grain = row_data["grain_statement"]
         fact_type = row_data["fact_type"]
 
@@ -181,39 +188,28 @@ def write_xlsx(
         cell_d = ws.cell(row=row_idx, column=4, value=grain)
         cell_d.alignment = Alignment(wrap_text=True, vertical="center")
         cell_d.border = thin_border
-        ws.cell(row=row_idx, column=5, value=fact_type).border = thin_border
+        ws.cell(row=row_idx, column=5, value=dwd_name).border = thin_border
+        ws.cell(row=row_idx, column=6, value=fact_type).border = thin_border
 
         for dim_idx, dim in enumerate(columns):
             dim_key = dim.get(dim_key_field, "")
             marker = cells.get((bp_name, dim_key), "-")
-            cell = ws.cell(row=row_idx, column=6 + dim_idx, value=marker)
+            cell = ws.cell(row=row_idx, column=7 + dim_idx, value=marker)
             cell.alignment = center_align
             cell.border = thin_border
             cell.font = check_font if marker == "✓" else dash_font
 
     last_data_row = data_start_row + len(rows) - 1
 
-    # -- Metadata footer --
-    meta_row = last_data_row + 2 if rows else 3
-    meta_items = [
-        ("version", version),
-        ("status", status),
-        ("updated_by", "dwm-bus-matrix-skill"),
-        ("updated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-    ]
-    meta_font = Font(italic=True, color="888888", size=9)
-    for i, (key, val) in enumerate(meta_items):
-        ws.cell(row=meta_row, column=1 + i * 2, value=key).font = meta_font
-        ws.cell(row=meta_row, column=2 + i * 2, value=val).font = meta_font
-
     # -- Column widths --
     ws.column_dimensions["A"].width = 18
     ws.column_dimensions["B"].width = 16
     ws.column_dimensions["C"].width = 22
     ws.column_dimensions["D"].width = 36
-    ws.column_dimensions["E"].width = 18
+    ws.column_dimensions["E"].width = 30
+    ws.column_dimensions["F"].width = 18
     for i in range(len(columns)):
-        col_letter = get_column_letter(6 + i)
+        col_letter = get_column_letter(7 + i)
         ws.column_dimensions[col_letter].width = 14
 
     wb.save(output_path)
@@ -225,7 +221,7 @@ def main():
     parser.add_argument("--business-process", required=True, help="Path to dwm_bp_business_process.csv")
     parser.add_argument("--subject-area", required=True, help="Path to dwm_bp_subject_area.csv")
     parser.add_argument("--dim-registry", required=True, help="Path to dwm_dim_registry.csv")
-    parser.add_argument("--field-profile", required=True, help="Path to dwm_inv_field_profile.csv")
+    parser.add_argument("--field-metadata", required=True, help="Path to all_tables_metadata.xlsx")
     parser.add_argument("--output", "-o", default="output/dwm-bus-matrix/dwm_bus_matrix.xlsx",
                         help="Output xlsx path (default: output/dwm-bus-matrix/dwm_bus_matrix.xlsx)")
     parser.add_argument("--version", "-v", default="v1.0", help="Matrix version (default: v1.0)")
@@ -235,7 +231,7 @@ def main():
     table_profile = read_csv(args.business_process)
     subject_area = read_csv(args.subject_area)
     dim_registry = read_csv(args.dim_registry)
-    field_profile = read_csv(args.field_profile)
+    field_profile = read_xlsx(args.field_metadata)
 
     rows, columns, cells = build_matrix(table_profile, subject_area, dim_registry, field_profile)
 

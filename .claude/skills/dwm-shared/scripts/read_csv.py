@@ -4,22 +4,22 @@ CSV reader for dwm sub-skills (shared tool).
 
 Usage:
     # Read all rows
-    python read_csv.py output/dwm-bus-matrix/inventory/dwm_inv_source_registry.csv
+    python read_csv.py output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv
 
     # Filter by column value
-    python read_csv.py output/dwm-bus-matrix/inventory/dwm_inv_field_registry.csv --where "constraint_type=PK"
+    python read_csv.py output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv --where "主题域编码=TRD"
 
     # Multiple filters (AND)
-    python read_csv.py output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv --where "field_role=foreign_key" --where "join_miss_rate<=0.01"
+    python read_csv.py output/dwm-bus-matrix/business-process/dwm_bp_metric.csv --where "度量类型=可加度量" --where "涉及ODS表=order_info"
 
     # Select specific columns
-    python read_csv.py output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv --select "ods_table_name,col_name,field_role"
+    python read_csv.py output/dwm-bus-matrix/dimension/dwm_dim_registry.csv --select "维度编码,维度中文名称,来源ODS表"
 
     # Count rows
-    python read_csv.py output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv --where "field_role=foreign_key" --count
+    python read_csv.py output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv --count
 
     # Distinct values of a column
-    python read_csv.py output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv --distinct "field_role"
+    python read_csv.py output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv --distinct "主题域编码"
 """
 
 import csv

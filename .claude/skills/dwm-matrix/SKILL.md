@@ -2,42 +2,40 @@
 name: dwm-matrix
 description: >-
   Use when the user asks to "构建总线矩阵", "数仓建模", "总线矩阵",
-  "矩阵验证", "优先级发布", "DWD建设清单", "DIM建设清单",
-  "bus matrix", "第一步", "第二步", "第三步", "第四步",
+  "矩阵验证", "优先级发布", "DWD建设清单", "DIM建设清单", "bus matrix",
   or discusses data warehouse bus matrix construction, matrix assembly, validation, or delivery.
-  This is the orchestrator that coordinates dwm-data-inventory, dwm-business-process, dwm-dimension.
+  This is the orchestrator that coordinates dwm-business-process, dwm-dimension.
 version: 2.0.0
 ---
 
-# 组装总线矩阵（编排 + 验证 + 交付）
+# 构建总线矩阵
 
 ## 定位
 
-编排 dwm-data-inventory / dwm-business-process / dwm-dimension 三个 Skill，完成从数据源盘点到总线矩阵发布的全流程。同时负责矩阵验证和最终交付物合成。
+编排 dwm-business-process / dwm-dimension 两个 Skill，基于上游元数据产出完成总线矩阵的组装、验证和交付。同时负责矩阵验证和最终交付物合成。
 
 基于《数据仓库工具箱》(Kimball) 四步法与《阿里巴巴大数据之路》分层实践。Kimball 负责"怎么建模是对的"，阿里分层负责"怎么工程化落地可持续"。
+
+## 前置输入（上游产出）
+
+本 Skill 流程的数据基座来自上游两个产出物，无需再执行数据盘点步骤：
+
+| 文件 | 路径 | 提供信息 |
+|------|------|----------|
+| 源表元数据 | `output/metadata_parse/all_tables_metadata.xlsx` | 字段名、数据类型、主键、外键、外键引用、字段空值率、字段角色 |
+| ODS 表清单 | `output/ods_generator/all_tables_metadata_ods.xlsx` | 原表名、新表名（ODS）、主键、外键、DDL |
 
 ## 编排流程
 
 ```
-dwm-data-inventory       数据盘点（ODS + 字段元数据 + 客观画像）
+上游产出（metadata_parse + ods_generator）
         ↓
-dwm-business-process     选择业务过程 + 声明粒度 + 确认事实 (Kimball Step 1+2+4)
+dwm-business-process     选择业务过程 + 声明粒度 + 确认事实
         ↓
-dwm-dimension            确认维度 (Kimball Step 3)
+dwm-dimension            确认维度
         ↓
 dwm-matrix               组装 + 验证 + 交付（本 Skill）
 ```
-
-### 步骤映射
-
-| 用户说 | 执行 Skill |
-|--------|-----------|
-| "第一步" / "数据盘点" / "ODS盘点" | → dwm-data-inventory |
-| "第二步" / "识别业务过程" / "粒度声明" / "确认事实" / "度量归属" | → dwm-business-process |
-| "第三步" / "确认维度" / "一致性维度" | → dwm-dimension |
-| "第四步" / "矩阵验证" / "发布" | → dwm-matrix（验证 + 交付） |
-| "构建总线矩阵" / "数仓建模" | → dwm-matrix 从第一步开始全流程 |
 
 ## 本 Skill 自身职责（验证 + 交付）
 
@@ -56,9 +54,10 @@ dwm-matrix               组装 + 验证 + 交付（本 Skill）
 
 ## 输入依赖
 
-| 输入项 | 来源 Skill |
-|--------|-----------|
-| `dwm_inv_*` | dwm-data-inventory |
+| 输入项 | 来源 |
+|--------|------|
+| `output/metadata_parse/all_tables_metadata.xlsx` | 上游元数据解析 |
+| `output/ods_generator/all_tables_metadata_ods.xlsx` | 上游 ODS 生成器 |
 | `dwm_bp_*` | dwm-business-process |
 | `dwm_dim_*` | dwm-dimension |
 
@@ -79,12 +78,13 @@ dwm-matrix               组装 + 验证 + 交付（本 Skill）
 
 | 当前步骤 | 回退目标 | 触发条件 |
 |---------|---------|---------|
-| dwm-business-process | dwm-data-inventory | 字段画像有误导致表角色判断错误 |
-| dwm-dimension | dwm-data-inventory | 外键画像有误导致维度关联错误 |
+| dwm-business-process | 上游 metadata_parse | 字段画像有误导致表角色判断错误 |
+| dwm-dimension | 上游 metadata_parse | 外键画像有误导致维度关联错误 |
 | dwm-matrix | dwm-dimension | 应连未连或维度口径不一致 |
-| dwm-matrix | dwm-business-process | 聚合结果违反业务常���或度量归属有误 |
+| dwm-matrix | dwm-business-process | 聚合结果违反业务常识或度量归属有误 |
 
 回退原则：最小回退、影响评估、变更审批、防循环（同一问题不超过 2 次）。
+若上游元数据本身有误（字段角色/外键标注错误），需回到 metadata_parse 重新生成。
 
 ## 术语统一
 
@@ -109,7 +109,7 @@ python .claude/skills/dwm-matrix/scripts/write_bus_matrix.py \
   --business-process output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv \
   --subject-area  output/dwm-bus-matrix/business-process/dwm_bp_subject_area.csv \
   --dim-registry  output/dwm-bus-matrix/dimension/dwm_dim_registry.csv \
-  --field-profile output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv \
+  --field-metadata output/metadata_parse/all_tables_metadata.xlsx \
   --output        output/dwm-bus-matrix/dwm_bus_matrix.xlsx \
   --version v1.0
 ```

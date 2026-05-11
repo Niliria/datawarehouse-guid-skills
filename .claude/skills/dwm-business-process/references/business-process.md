@@ -1,4 +1,4 @@
-# ② 选择业务过程 + 声明粒度 + 确认事实（Kimball Step 1+2+4）
+# 选择业务过程 + 声明粒度 + 确认事实
 
 通过表关系网识别业务过程（总线矩阵的行），同步完成主题域定义、粒度声明、事实表类型判定与度量归属。
 
@@ -6,18 +6,18 @@
 
 ## 1. 输入
 
-| 输入项 | 来源 Skill | 过滤条件 | 用途 |
-|--------|-----------|---------|------|
-| `dwm_inv_field_profile` | ① | `field_role IN ('primary_key','foreign_key','business_time','numeric_measure')` | 画表关系图的核心证据 |
-| `dwm_inv_field_profile` | ① | `field_role='foreign_key'` | 外键关系连线（含 `ref_table`/`ref_column`/`join_miss_rate`） |
-| `dwm_inv_field_registry` | ① | `constraint_type IN ('PK','UK','FK')` | 源系统约束，最高优先级证据 |
-| `dwm_inv_ods_inventory` | ① | 全量 | ODS 表清单、同步模式、行数 |
+| 输入项 | 来源 | 过滤条件 | 用途 |
+|--------|------|---------|------|
+| `output/metadata_parse/all_tables_metadata.xlsx` | 上游元数据解析 | `字段角色 IN ('primary_key','foreign_key','business_time','numeric_measure')` | 画表关系图的核心证据 |
+| `output/metadata_parse/all_tables_metadata.xlsx` | 上游元数据解析 | `字段角色='foreign_key'` | 外键关系连线（含 `外键引用`） |
+| `output/metadata_parse/all_tables_metadata.xlsx` | 上游元数据解析 | `主键='Y'` 或 `外键='Y'` | 源系统约束，最高优先级证据 |
+| `output/ods_generator/all_tables_metadata_ods.xlsx` | 上游 ODS 生成器 | 全量 | ODS 表清单 |
 
 ---
 
 ## 2. 接口数据无主键降级策略
 
-接口数据（API/文件/消息队列）通常无 PK/FK 约束，① 完整度等级为"缺失/部分"时，在本步骤通过数据画像补充证据。
+接口数据（API/文件/消息队列）通常无 PK/FK 约束，元数据完整度等级为"缺失/部分"时，在本步骤通过数据画像补充证据。
 
 | 场景 | 降级处理 | 操作方法 |
 |------|---------|---------|
@@ -57,13 +57,13 @@ WHERE a.source_col IS NOT NULL
 
 ### 3.1 画表关系图（手段，非独立交付）
 
-1. 以 `dwm_inv_field_profile WHERE field_role='foreign_key'` 为主线画连线（不是仅靠同名字段）
-2. 以 `dwm_inv_field_registry WHERE constraint_type='FK'` 补充强证据
+1. 以 `all_tables_metadata.xlsx WHERE 字段角色='foreign_key'` 为主线画连线（不是仅靠同名字段）
+2. 以 `all_tables_metadata.xlsx WHERE 主键='Y' OR 外键='Y'` 补充强证据
 3. 对同名 ID 做补充候选，再做语义核验（实体含义、值域、JOIN 命中率）
 4. 区分角色：
-   - **被引用为主、实体属性稳定**：维度候选（本步不做维度注册，交由 ③）
+   - **被引用为主、实体属性稳定**：维度候选（本步不做维度注册，交由 dwm-dimension）
    - **引用多个实体且承载行为**：事实候选 → 进入业务过程识别
-5. 接口数据补充：对 ① 标记为"缺失/部分"的数据源，通过 §2 降级策略补充外键关系
+5. 接口数据补充：对元数据标记为"缺失/部分"的数据源，通过 §2 降级策略补充外键关系
 
 ### 3.2 识别事实表（业务过程候选）
 
@@ -71,15 +71,15 @@ WHERE a.source_col IS NOT NULL
 
 | 证据类型 | 说明 | 判定方式 |
 |---------|------|---------|
-| **时间证据** | 表中存在 `field_role=business_time` 的字段 | 事实候选 |
-| **度量证据** | 表中存在 `field_role=numeric_measure` 且有多个 | 事实候选 |
-| **关联证据** | 表中存在 ≥ 2 个 `field_role=foreign_key` | 事实候选 |
+| **时间证据** | 表中存在 `字段角色=business_time` 的字段 | 事实候选 |
+| **度量证据** | 表中存在 `字段角色=numeric_measure` 且有多个 | 事实候选 |
+| **关联证据** | 表中存在 ≥ 2 个 `字段角色=foreign_key` | 事实候选 |
 | **增长证据** | `sync_mode=INCR` + 行数远大于其他表 | 事实候选 |
 
 判定规则：
 - 满足 ≥ 2 条事实证据 → 代表一个业务过程，进入业务过程清单
 - **无数值但有行为轨迹的表** → factless 事实表（领券、浏览、签到等），同样进入业务过程清单
-- 不满足事实条件的表不纳入本步产出（维度/配置/排除由 ③ 或其他步骤处理）
+- 不满足事实条件的表不纳入本步产出（维度/配置/排除由 dwm-dimension 或其他步骤处理）
 
 ### 3.3 识别业务过程并归组主题域
 
@@ -96,7 +96,7 @@ WHERE a.source_col IS NOT NULL
 1. 按业务过程写一句话粒度声明（例：一行一笔支付交易）
 2. 识别承载粒度的键：主键或联合键
 3. 做唯一性校验：`COUNT(*)` 对比 `COUNT(DISTINCT 粒度键)`
-   - 单列粒度键：直接从 `dwm_inv_field_profile` 的 `total_cnt` / `distinct_cnt` 验证，无需查数据库
+   - 单列粒度键：直接从 `all_tables_metadata.xlsx` 的 `字段空值率` 验证，无需查数据库
    - 联合粒度键：需查数据库执行联合唯一性校验
 4. 若不唯一 → 回退修正：补联合键或下钻到更细明细层
 5. 接口数据无主键时：通过 §2 唯一率分析发现天然键或联合键作为粒度键
@@ -133,7 +133,7 @@ WHERE dt = '${check_dt}';
 
 ### 3.6 确定度量
 
-1. 从 `dwm_inv_field_profile WHERE is_numeric='Y' AND field_role='numeric_measure'` 获取度量候选
+1. 从 `all_tables_metadata.xlsx WHERE 字段角色='numeric_measure'` 获取度量候选
 2. 逐个归属到对应事实表
 3. 判定度量可加性类型：
 
@@ -216,7 +216,7 @@ WHERE dt = '${check_dt}';
 | 涉及ODS表 | 事实表名 | 是 | 来自 `dwm_bp_business_process` |
 | 业务过程英文名称 | 业务过程标准名 | 是 | 事实表对应业务过程 |
 | 度量字段名 | 字段英文名 | 是 | ODS 源字段名 |
-| 度量中文名称 | 字段中文注释 | 是 | 来自 `dwm_inv_field_profile.col_comment` |
+| 度量中文名称 | 字段中文注释 | 是 | 来自 `all_tables_metadata.xlsx` 的 `字段注释` 或 `字段注释填充` |
 | 度量类型 | 可加性分类 | 是 | `可加度量` / `半可加度量` / `不可加度量` |
 | 聚合建议 | 推荐聚合函数 | 是 | `sum` / `avg` / `max` / `min` / `count_distinct` |
 | 度量单位 | 单位 | 是 | 元 / 件 / % / 次 等 |
@@ -246,11 +246,11 @@ WHERE dt = '${check_dt}';
 
 | 下游 Skill | 消费数据 | 用途 |
 |-----------|---------|------|
-| ③ dwm-dimension | `dwm_bp_business_process` | 业务过程清单，从中提取维度引用 |
-| ③ dwm-dimension | `dwm_bp_subject_area` | 主题域主数据 |
-| ④ dwm-bus-matrix | `dwm_bp_business_process` | 矩阵行、粒度、事实表类型 |
-| ④ dwm-bus-matrix | `dwm_bp_subject_area` | 主题域清单 |
-| ④ dwm-bus-matrix | `dwm_bp_metric` | 度量归属 → DWD spec 合成 |
+| dwm-dimension | `dwm_bp_business_process` | 业务过程清单，从中提取维度引用 |
+| dwm-dimension | `dwm_bp_subject_area` | 主题域主数据 |
+| dwm-matrix | `dwm_bp_business_process` | 矩阵行、粒度、事实表类型 |
+| dwm-matrix | `dwm_bp_subject_area` | 主题域清单 |
+| dwm-matrix | `dwm_bp_metric` | 度量归属 → DWD spec 合成 |
 
 ---
 
@@ -268,10 +268,11 @@ from write_csv import write_csv
 ### 读取上游产出
 
 ```python
-# 读取字段客观画像（外键连线依据）
-field_profile = read_csv("output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv")
-fk_fields = [f for f in field_profile if f["field_role"] == "foreign_key"]
+# 读取字段元数据（外键连线依据）
+from read_xlsx import read_xlsx
+field_metadata = read_xlsx("output/metadata_parse/all_tables_metadata.xlsx")
+fk_fields = [f for f in field_metadata if f["字段角色"] == "foreign_key"]
 
 # 读取 ODS 表清单
-ods_tables = read_csv("output/dwm-bus-matrix/inventory/dwm_inv_ods_inventory.csv")
+ods_tables = read_xlsx("output/ods_generator/all_tables_metadata_ods.xlsx")
 ```

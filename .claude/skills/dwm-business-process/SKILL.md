@@ -1,8 +1,8 @@
 ---
 name: dwm-business-process
 description: >-
-  Use when the user asks to "第二步", "步骤二", "识别业务过程", "业务过程识别",
-  "选择业务过程", "声明粒度", "粒度声明", "定义主题域", "主题域划分", "数据域",
+  Use when the user asks to "识别业务过程", "业务过程识别",
+  "选择业务过程", "声明粒度", "粒度声明", "定义主题域", "主题域划分",
   "确认事实", "事实确定", "度量归属", "度量确认", "事实表类型", "派生度量",
   "select business process", "declare grain", "identify facts", "determine measures",
   or needs to identify business processes, define subject areas, declare grain,
@@ -10,7 +10,7 @@ description: >-
 version: 2.0.0
 ---
 
-# 选择业务过程 + 声明粒度 + 确认事实（Kimball Step 1+2+4）
+# 选择业务过程 + 声明粒度 + 确认事实
 
 ## 定位
 
@@ -31,17 +31,16 @@ version: 2.0.0
 - 接口数据无主键时通过画像降级发现业务键和外键
 
 **不做什么**：
-- 不做字段画像（→ dwm-data-inventory）
+- 不做字段画像（由上游 metadata_parse 提供）
 - 不提取/注册维度（→ dwm-dimension，维度识别是 Kimball 第三步）
 - 不做维度表粒度声明（→ dwm-dimension）
 
 ## 输入依赖
 
-| 输入项 | 来源 Skill | 用途 |
-|--------|-----------|------|
-| `dwm_inv_field_profile` | dwm-data-inventory | 字段角色画像，用于画表关系图 + 度量候选（`numeric_measure`） |
-| `dwm_inv_field_registry` | dwm-data-inventory | 约束信息（PK/UK/FK）+ 字段类型信息 |
-| `dwm_inv_ods_inventory` | dwm-data-inventory | ODS 表清单与同步模式 |
+| 输入项 | 来源 | 用途 |
+|--------|------|------|
+| `output/metadata_parse/all_tables_metadata.xlsx` | 上游元数据解析 | 字段角色画像（字段角色列）、约束信息（主键/外键/外键引用列）、字段类型，用于画表关系图 + 度量候选 |
+| `output/ods_generator/all_tables_metadata_ods.xlsx` | 上游 ODS 生成器 | ODS 表清单（原表名→新表名映射） |
 
 ## 产出物
 

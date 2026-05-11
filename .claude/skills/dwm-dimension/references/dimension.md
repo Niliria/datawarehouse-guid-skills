@@ -1,4 +1,4 @@
-# ③ 确认维度（Kimball Step 3）
+# 确认维度
 
 从每个业务过程中提取维度引用，收敛一致性维度，确认退化维度与低基数离散属性，确定 SCD 策略。
 
@@ -6,13 +6,13 @@
 
 ## 1. 输入
 
-| 输入项 | 来源 Skill | 过滤条件 | 用途 |
-|--------|-----------|---------|------|
-| `dwm_bp_business_process` | ② | 全量 | 业务过程清单与粒度声明 |
-| `dwm_inv_field_profile` | ① | `field_role='foreign_key'` | 维度外键引用（含 `ref_table`/`ref_column`/`join_miss_rate`） |
-| `dwm_inv_field_profile` | ① | `field_role='low_cardinality'` | 低基数离散属性候选（Junk Dimension 候选） |
-| `dwm_inv_field_profile` | ① | `field_role='primary_key'` | 维度表粒度键候选 |
-| `dwm_bp_subject_area` | ② | 全量 | 主题域定义 |
+| 输入项 | 来源 | 过滤条件 | 用途 |
+|--------|------|---------|------|
+| `dwm_bp_business_process` | dwm-business-process | 全量 | 业务过程清单与粒度声明 |
+| `output/metadata_parse/all_tables_metadata.xlsx` | 上游元数据解析 | `字段角色='foreign_key'` | 维度外键引用（含 `外键引用`） |
+| `output/metadata_parse/all_tables_metadata.xlsx` | 上游元数据解析 | `字段角色='low_cardinality'` | 低基数离散属性候选（Junk Dimension 候选） |
+| `output/metadata_parse/all_tables_metadata.xlsx` | 上游元数据解析 | `字段角色='primary_key'` | 维度表粒度键候选 |
+| `dwm_bp_subject_area` | dwm-business-process | 全量 | 主题域定义 |
 
 ---
 
@@ -35,14 +35,14 @@
 2. `field_role` 为 `primary_key` 且 `is_surrogate='N'`（天然业务键），或字段命名含有业务单号语义（`*_no`、`*_order_id`、`invoice_*`）
 3. 无需以此字段为主键单独建维表分析其属性
 
-判定为退化维度的字段不进入 `dwm_dim_registry`，在组装阶段由 `dwm_inv_field_profile` 直接推导。
+判定为退化维度的字段不进入 `dwm_dim_registry`，在组装阶段由 `all_tables_metadata.xlsx` 直接推导。
 
 ### 2.3 提取维度外键引用
 
 对每个业务过程（`dwm_bp_business_process` 中的每一行）：
 
-1. 从 `dwm_inv_field_profile WHERE field_role='foreign_key'` 提取该事实表的外键字段
-2. 通过 `ref_table` / `ref_column` 关联到维度候选表（从 `dwm_inv_field_profile` FK 被引用关系识别）
+1. 从 `all_tables_metadata.xlsx WHERE 字段角色='foreign_key'` 提取该事实表的外键字段
+2. 通过 `外键引用` 关联到维度候选表（从 `all_tables_metadata.xlsx` FK 被引用关系识别）
 3. 补充"是否必选维度"与"缺失容忍策略"（如匿名用户→ UNKNOWN 填充）
 4. 提取退化维度字段（按 §2.2 规则）
 5. 提取低基数离散属性（`field_role='low_cardinality'`），判断是独立 Junk Dimension 还是内联属性
@@ -51,9 +51,9 @@
 ### 2.4 收敛一致性维度
 
 1. 汇总所有业务过程外键，去重得到一致性维度候选列表
-2. 为每个维度键确定唯一维表来源（从 `dwm_inv_field_profile` FK 被引用关系识别维度候选表）
+2. 为每个维度键确定唯一维表来源（从 `all_tables_metadata.xlsx` FK 被引用关系识别维度候选表）
 3. 执行一致性检查：命名、口径、编码、值域、JOIN 命中率
-4. 退化维度与低基数离散属性由组装阶段从 `dwm_inv_field_profile` 推导，**不纳入** `dwm_dim_registry`
+4. 退化维度与低基数离散属性由组装阶段从 `all_tables_metadata.xlsx` 推导，**不纳入** `dwm_dim_registry`
 5. 仅注册需建 DIM 表的一致性维度
 
 ### 2.5 确认 SCD 策略
@@ -87,7 +87,7 @@
 | 维度编码 | 维度唯一标识 | 是 | 主键，命名格式：`dim_xxx` |
 | 维度中文名称 | 中文名 | 是 | 如"用户维度" |
 | 维度描述 | 一句话业务含义 | 是 | 描述维度用途 |
-| 来源ODS表 | 源维表名 | 是 | 从 `dwm_inv_field_profile` FK 被引用关系识别 |
+| 来源ODS表 | 源维表名 | 是 | 从 `all_tables_metadata.xlsx` FK 被引用关系识别 |
 | 粒度键 | 业务键/代理键 | 是 | 逗号分隔 |
 | 维度属性字段 | 所有维度属性 | 是 | 逗号分隔 |
 | 建模策略 | 建模方式 | 是 | `独立维表` |
@@ -101,7 +101,7 @@
 
 > 主键：`维度编码`
 >
-> **说明**：维度引用关系（哪个事实表引用哪个维度、退化维度、低基数属性）在组装阶段从 `dwm_inv_field_profile` 推导，不单独持久化。
+> **说明**：维度引用关系（哪个事实表引用哪个维度、退化维度、低基数属性）在组装阶段从 `all_tables_metadata.xlsx` 推导，不单独持久化。
 
 ---
 
@@ -110,7 +110,7 @@
 1. `dwm_dim_registry` 中每个维度键有唯一口径定义，跨事实无冲突
 2. 维度候选池已剔除技术属性字段（`field_role='tech_meta'` 占比 = 0）
 3. 每个一致性维度中的 SCD 属性字段已确认 SCD 类型，`SCD字段分组` 格式正确
-4. 每个业务过程至少有一个核心分析维度（可从 `dwm_inv_field_profile` FK 关系验证）
+4. 每个业务过程至少有一个核心分析维度（可从 `all_tables_metadata.xlsx` FK 关系验证）
 
 ---
 
@@ -118,8 +118,8 @@
 
 | 下游 Skill | 消费数据 | 用途 |
 |-----------|---------|------|
-| ⑤ dwm-matrix | `dwm_dim_registry` | 总线矩阵列头 + DIM 维度表建设清单合成 |
-| ⑤ dwm-matrix | `dwm_inv_field_profile`（FK 关系） | 总线矩阵格子填充（从 FK ref_table 映射到 dim_registry）、DWD 字段汇总（退化维度/低基数属性直接从 field_profile 推导） |
+| dwm-matrix | `dwm_dim_registry` | 总线矩阵列头 + DIM 维度表建设清单合成 |
+| dwm-matrix | `all_tables_metadata.xlsx`（FK 关系） | 总线矩阵格子填充（从 外键引用 映射到 dim_registry）、DWD 字段汇总（退化维度/低基数属性直接从元数据推导） |
 
 ---
 
@@ -140,12 +140,13 @@ from write_csv import write_csv
 # 读取业务过程清单
 business_processes = read_csv("output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv")
 
-# 读取字段外键画像
-field_profile = read_csv("output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv")
-fk_fields = [f for f in field_profile if f["field_role"] == "foreign_key"]
+# 读取字段元数据（外键画像）
+from read_xlsx import read_xlsx
+field_metadata = read_xlsx("output/metadata_parse/all_tables_metadata.xlsx")
+fk_fields = [f for f in field_metadata if f["字段角色"] == "foreign_key"]
 
 # 读取低基数候选
-lc_fields = [f for f in field_profile if f["field_role"] == "low_cardinality"]
+lc_fields = [f for f in field_metadata if f["字段角色"] == "low_cardinality"]
 ```
 
 ### 一致性检查 SQL
