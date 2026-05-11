@@ -24,7 +24,7 @@ version: 1.0.0
 - 字段客观画像（7 种客观角色 + 补充画像属性）
 
 **不做什么**：
-- 不判度量可加性（→ dwm-fact）
+- 不判度量可加性（→ dwm-business-process）
 - 不判退化维度（→ dwm-dimension）
 - 不判表角色（→ dwm-business-process 直接判）
 - 不定义主题域（→ dwm-business-process）

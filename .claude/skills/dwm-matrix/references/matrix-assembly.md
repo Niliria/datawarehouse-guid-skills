@@ -10,13 +10,11 @@
 
 | 输入项 | 来源 Skill | 用途 |
 |--------|-----------|------|
-| `dwm_fct_type` | ④ | 事实表类型 |
-| `dwm_fct_metric` | ④ | 度量归属底稿 → 合成 DWD spec |
-| `dwm_dim_fact_ref` | ③ | 维度引用底稿 → 合成 DWD spec + 总线矩阵 |
-| `dwm_dim_registry` | ③ | 一致性维度底稿 → 合成 DIM spec + 总线矩阵 |
-| `dwm_bp_table_profile` | ② | 业务过程、粒度声明、表角色 |
+| `dwm_bp_business_process` | ② | 业务过程、粒度声明、事实表类型 |
+| `dwm_bp_metric` | ② | 度量归属底稿 → 合成 DWD spec |
 | `dwm_bp_subject_area` | ② | 主题域主数据 |
-| `dwm_inv_field_profile` | ① | 字段元数据（ODS 溯源） |
+| `dwm_dim_registry` | ③ | 一致性维度注册表 → 总线矩阵列头 + DIM spec |
+| `dwm_inv_field_profile` | ① | 字段元数据（FK 关系推导维度引用、ODS 溯源、退化维度/低基数属性推导） |
 | `dwm_inv_field_registry` | ① | 字段类型信息（`data_type`，填充 `ods_data_type`） |
 | `dwm_inv_ods_inventory` | ① | 同步模式（DWD 表名后缀依据） |
 
@@ -73,11 +71,11 @@ WHERE a.${fk_col} IS NOT NULL
 1. **生成 DWD 表名**：`dwd_{subject_area_code_lowercase}_{bp_standard_name}_{suffix}`
    - suffix 依据 `dwm_inv_ods_inventory.sync_mode`：`FULL` → `df`，`INCR` → `di`
 2. **汇总字段**（按以下固定顺序，对应 `sort_order`）：
-   - 粒度键（`grain_key`）：来自 `dwm_bp_table_profile.grain_keys`
-   - 维度外键（`fk`）：来自 `dwm_dim_fact_ref WHERE dimension_type='外键'`
-   - 退化维度（`degenerate_dim`）：来自 `dwm_dim_fact_ref WHERE dimension_type='退化维度'`
-   - 低基数离散属性（`low_card_attr`）：来自 `dwm_dim_fact_ref WHERE dimension_type='低基数离散属性候选'`
-   - 度量字段（`measure`）：来自 `dwm_fct_metric`
+   - 粒度键（`grain_key`）：来自 `dwm_bp_business_process.粒度键`
+   - 维度外键（`fk`）：来自 `dwm_inv_field_profile WHERE field_role='foreign_key'`，通过 `ref_table` 映射到 `dwm_dim_registry`
+   - 退化维度（`degenerate_dim`）：来自 `dwm_inv_field_profile WHERE field_role='primary_key' AND is_surrogate='N'`（事实表中的天然业务键）
+   - 低基数离散属性（`low_card_attr`）：来自 `dwm_inv_field_profile WHERE field_role='low_cardinality'`（事实表中的低基数字段）
+   - 度量字段（`measure`）：来自 `dwm_bp_metric`
    - 业务时间（`business_time`）：来自 `dwm_inv_field_profile WHERE field_role='business_time'`
 3. **标注 ODS 溯源**：每个字段通过 `dwm_inv_field_profile` 关联 `ods_table_name` + `col_name`，通过 `dwm_inv_field_registry.data_type` 填充 `ods_data_type`
 4. **标注维度关联**：外键字段标注关联的 DIM 表（来自 `dwm_dim_registry.dimension_key`）
@@ -99,19 +97,19 @@ WHERE a.${fk_col} IS NOT NULL
 对每个主题域，汇总统计信息：
 
 1. 基础信息：来自 `dwm_bp_subject_area`
-2. 业务过程数：`COUNT(*) FROM dwm_bp_table_profile WHERE subject_area_code=X AND table_role='fact'`
+2. 业务过程数：`COUNT(*) FROM dwm_bp_business_process WHERE 主题域编码=X`
 3. DWD 表数 = 业务过程数
 4. 关联 DIM 表数：该域下事实表关联的去重 DIM 表数量
-5. 源 ODS 表数：该域下所有 `table_role != 'exclude'` 的 ODS 表数量
+5. 源 ODS 表数：该域下业务过程涉及的 ODS 表数量
 
 ### 2.5 生成总线矩阵 Excel
 
 ```bash
 python .claude/skills/dwm-5-bus-matrix/scripts/write_bus_matrix.py \
-  --table-profile output/dwm-bus-matrix/business-process/dwm_bp_table_profile.csv \
+  --business-process output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv \
   --subject-area  output/dwm-bus-matrix/business-process/dwm_bp_subject_area.csv \
-  --fact-dim-ref  output/dwm-bus-matrix/dimension/dwm_dim_fact_ref.csv \
   --dim-registry  output/dwm-bus-matrix/dimension/dwm_dim_registry.csv \
+  --field-profile output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv \
   --output        output/dwm-bus-matrix/dwm_bus_matrix.xlsx \
   --version v1.0
 ```
@@ -136,7 +134,7 @@ python .claude/skills/dwm-5-bus-matrix/scripts/write_bus_matrix.py \
 |--------|----------|:--:|---------|
 | check_id | 检查项编号 | 是 | 自增主键 |
 | check_type | 检查类型 | 是 | `join验证` / `粒度唯一性验证` / `口径验证` / `应连未连` |
-| business_process | 业务过程（行） | 是 | 来自 `dwm_bp_table_profile.bp_standard_name` |
+| business_process | 业务过程（行） | 是 | 来自 `dwm_bp_business_process.业务过程英文名称` |
 | dimension_key | 维度键（列） | 条件 | `check_type IN ('join验证','口径验证','应连未连')` 时必填 |
 | ref_table | 引用维表名 | 条件 | `check_type='join验证'` 时必填 |
 | ref_column | 引用字段名 | 条件 | `check_type='join验证'` 时必填 |
@@ -161,9 +159,9 @@ python .claude/skills/dwm-5-bus-matrix/scripts/write_bus_matrix.py \
 |--------|----------|:--:|---------|
 | dwd_table_name | DWD 表名 | 是 | `dwd_{subject_area_code}_{bp_standard_name}_{df/di}` |
 | subject_area_code | 主题域编码 | 是 | 关联 `dwm_bp_subject_area` |
-| bp_standard_name | 业务过程标准名 | 是 | 来自 `dwm_bp_table_profile` |
+| bp_standard_name | 业务过程标准名 | 是 | 来自 `dwm_bp_business_process` |
 | fact_type | 事实表类型 | 是 | `transaction` / `periodic_snapshot` / `accumulating_snapshot` / `factless` |
-| grain_statement | 粒度声明 | 是 | 来自 `dwm_bp_table_profile.grain_statement` |
+| grain_statement | 粒度声明 | 是 | 来自 `dwm_bp_business_process.粒度声明` |
 | dwd_column_name | DWD 字段名 | 是 | DWD 层字段命名 |
 | dwd_column_comment | 字段中文说明 | 是 | 来自 `dwm_inv_field_profile.col_comment` 或人工修正 |
 | column_role | 字段角色 | 是 | `grain_key` / `fk` / `degenerate_dim` / `low_card_attr` / `measure` / `business_time` |
@@ -214,10 +212,10 @@ python .claude/skills/dwm-5-bus-matrix/scripts/write_bus_matrix.py \
 | subject_area_name_cn | 中文名称 | 是 | 来自 `dwm_bp_subject_area` |
 | subject_area_name_en | 英文名称 | 是 | 来自 `dwm_bp_subject_area` |
 | subject_area_desc | 描述 | 是 | 来自 `dwm_bp_subject_area` |
-| bp_count | 业务过程数 | 是 | 该域下 `table_role=fact` 的表数量 |
+| bp_count | 业务过程数 | 是 | 该域下业务过程数量 |
 | dwd_table_count | DWD 事实表数 | 是 | = `bp_count` |
 | dim_table_count | 关联 DIM 维度表数 | 是 | 该域下事实表关联的去重 DIM 表数量 |
-| ods_table_count | 源 ODS 表数 | 是 | 该域下 `table_role != 'exclude'` 的 ODS 表数量 |
+| ods_table_count | 源 ODS 表数 | 是 | 该域下业务过程涉及的 ODS 表数量 |
 | bp_list | 业务过程列表 | 是 | 逗号分隔的 `bp_standard_name` |
 | dwd_table_list | DWD 表名列表 | 是 | 逗号分隔的 `dwd_table_name` |
 | dim_table_list | 关联 DIM 表列表 | 是 | 逗号分隔的 `dim_table_name` |
@@ -272,7 +270,7 @@ Excel 结构：
 4. **异常闭环**：`dwm_matrix_check` 中所有 `fail` 项均有 `handle_decision`
 5. **DWD spec 完整性**：每张 DWD 表字段数 = 粒度键数 + 维度外键数 + 退化维度数 + 度量数 + 业务时间数
 6. **DIM spec 完整性**：每张 DIM 表字段数 = 粒度键数 + 维度属性数（不含 SCD 管理字段）
-7. **主题域汇总一致性**：`dwm_subject_area_summary.bp_count` 与 `dwm_bp_table_profile` 中 fact 行数一致
+7. **主题域汇总一致性**：`dwm_subject_area_summary.bp_count` 与 `dwm_bp_business_process` 中行数一致
 8. **可追溯**：所有 DWD/DIM 字段的 `ods_table_name`、`ods_column_name`、`ods_data_type` 非空
 
 ---
@@ -297,7 +295,7 @@ Excel 结构：
 
 | 验证项 | 验证时机 | 检查规则 | 失败处理 |
 |--------|---------|---------|---------|
-| 粒度可聚合性 | DWD 建成后 | 聚合值与源系统差异率 ≤ 0.1% | 回退 ③④ |
+| 粒度可聚合性 | DWD 建成后 | 聚合值与源系统差异率 ≤ 0.1% | 回退 ②③ |
 | 维度 JOIN 一致性 | DIM + DWD 联调时 | 生产 JOIN miss_rate ≤ 1% | 回退 ③ |
 | 复杂属性拆解验证 | DWD 扁平化完成后 | 拆解覆盖率 + 数据正确性 | 修正拆解策略 |
 
@@ -305,9 +303,9 @@ Excel 结构：
 
 | 触发条件 | 回退目标 | 处理方式 |
 |---------|---------|---------|
-| DWD 聚合差异 > 0.1% | ④ `dwm_fct_metric` | 检查度量归属或事实表类型 |
+| DWD 聚合差异 > 0.1% | ② `dwm_bp_metric` | 检查度量归属或事实表类型 |
 | 生产 JOIN miss_rate 远高于采样 | ① `dwm_inv_field_profile` | 数据质量问题或 FK 关系误判 |
-| 新业务上线产生新业务过程 | ② `dwm_bp_table_profile` | 走 ②~⑤ 增量流程 |
+| 新业务上线产生新业务过程 | ② `dwm_bp_business_process` | 走 ②~⑤ 增量流程 |
 | 口径争议升级 | ③ `dwm_dim_registry` | 重新做一致性校验 |
 
 ### A.3 变更管理
@@ -333,12 +331,10 @@ from write_csv import write_csv
 
 ```python
 # 读取所有上游产出
-fact_types   = read_csv("output/dwm-bus-matrix/fact/dwm_fct_type.csv")
-metrics      = read_csv("output/dwm-bus-matrix/fact/dwm_fct_metric.csv")
-dim_fact_ref = read_csv("output/dwm-bus-matrix/dimension/dwm_dim_fact_ref.csv")
-dim_registry = read_csv("output/dwm-bus-matrix/dimension/dwm_dim_registry.csv")
-table_profile = read_csv("output/dwm-bus-matrix/business-process/dwm_bp_table_profile.csv")
+table_profile = read_csv("output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv")  # 含事实表类型
+metrics      = read_csv("output/dwm-bus-matrix/business-process/dwm_bp_metric.csv")
 subject_area  = read_csv("output/dwm-bus-matrix/business-process/dwm_bp_subject_area.csv")
+dim_registry = read_csv("output/dwm-bus-matrix/dimension/dwm_dim_registry.csv")
 ods_inventory = read_csv("output/dwm-bus-matrix/inventory/dwm_inv_ods_inventory.csv")
 field_profile = read_csv("output/dwm-bus-matrix/inventory/dwm_inv_field_profile.csv")
 field_registry = read_csv("output/dwm-bus-matrix/inventory/dwm_inv_field_registry.csv")

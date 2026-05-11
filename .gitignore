@@ -19,3 +19,8 @@ test/
 .claude/plans/
 .claude/settings.local.json
 .claude/CLAUDE.md
+output/assembly/
+output/business-process/
+output/dimension
+output/inventory
+output/scripts

@@ -23,24 +23,25 @@ version: 1.0.0
 - 确认 SCD 策略（SCD1/SCD2/SCD3）
 
 **不做什么**：
-- 不判事实表类型（→ dwm-fact）
-- 不判度量归属（→ dwm-fact）
+- 不判事实表类型（→ dwm-business-process）
+- 不判度量归属（→ dwm-business-process）
 - 不做字段画像（→ dwm-data-inventory）
 
 ## 输入依赖
 
 | 输入项 | 来源 Skill | 用途 |
 |--------|-----------|------|
-| `dwm_bp_table_profile WHERE table_role='fact'` | dwm-business-process | 业务过程清单与粒度声明 |
-| `dwm_bp_table_profile WHERE table_role='dimension'` | dwm-business-process | 维度候选表与粒度键 |
-| `dwm_inv_field_profile` | dwm-data-inventory | 字段角色画像（外键、业务键等） |
+| `dwm_bp_business_process` | dwm-business-process | 业务过程清单与粒度声明 |
+| `dwm_inv_field_profile` | dwm-data-inventory | 字段角色画像（外键、业务键等），用于自行识别维度候选表 |
+| `dwm_inv_ods_inventory` | dwm-data-inventory | ODS 表清单与行数 |
 | `dwm_bp_subject_area` | dwm-business-process | 主题域定义 |
+
+> **维度候选识别**：从 `dwm_inv_field_profile` 中分析 FK 被引用关系，被多张事实表引用且自身 FK ≤ 1 的表为维度候选。不再依赖 ② 的表角色判定。
 
 ## 产出物
 
 | 产出物 | 说明 | 输出路径 |
 |--------|------|----------|
-| `dwm_dim_fact_ref` | 维度引用底稿（每个事实表 → 关联哪些维度） | `output/dwm-bus-matrix/dimension/` |
 | `dwm_dim_registry` | 一致性维度注册表（需建 DIM 表的维度） | `output/dwm-bus-matrix/dimension/` |
 
 ## CSV 工具
