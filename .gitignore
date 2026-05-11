@@ -19,8 +19,8 @@ test/
 .claude/plans/
 .claude/settings.local.json
 .claude/CLAUDE.md
-output/assembly/
-output/business-process/
-output/dimension
-output/inventory
-output/scripts
+output/dwm-bus-matrix/assembly/
+output/dwm-bus-matrix/business-process/
+output/dwm-bus-matrix/dimension/
+output/dwm-bus-matrix/inventory/
+output/dwm-bus-matrix/scripts/

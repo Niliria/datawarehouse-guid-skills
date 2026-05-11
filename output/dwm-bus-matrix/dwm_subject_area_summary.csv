@@ -1,0 +1,7 @@
+﻿主题域编码,中文名称,英文名称,描述,业务过程数,DWD事实表数,关联DIM维度表数,源ODS表数,业务过程列表,DWD表名列表,关联DIM表列表,更新时间
+TRD,交易域,Trade,覆盖订单、支付、退款等交易全生命周期,4,4,3,4,"place_order,order_detail,payment,refund","dwd_trd_place_order_df,dwd_trd_order_detail_df,dwd_trd_payment_df,dwd_trd_refund_df","dim_shop,dim_sku,dim_user",2026-05-10
+MKT,营销域,Marketing,覆盖优惠券发放、领取与核销等营销活动,1,1,2,1,coupon_usage,dwd_mkt_coupon_usage_df,"dim_coupon,dim_user",2026-05-10
+INV,库存域,Inventory,覆盖商品库存状态管理,1,1,2,1,inventory_snapshot,dwd_inv_inventory_snapshot_df,"dim_shop,dim_sku",2026-05-10
+USR,用户域,User,覆盖用户注册与基础画像管理,0,0,0,0,,,,2026-05-10
+MDM,商品域,Merchandise,覆盖商品SKU与品类管理,0,0,0,0,,,,2026-05-10
+STR,门店域,Store,覆盖门店信息与区域管理,0,0,0,0,,,,2026-05-10

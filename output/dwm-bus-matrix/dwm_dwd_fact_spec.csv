@@ -1,0 +1,40 @@
+﻿DWD表名,主题域编码,业务过程标准名,事实表类型,粒度声明,DWD字段名,字段中文说明,字段角色,来源ODS表,来源ODS字段,ODS字段数据类型,关联DIM表,聚合建议,度量单位,是否派生,派生逻辑,字段排序,备注,更新时间
+dwd_trd_place_order_df,TRD,place_order,transaction,一行一笔订单,order_id,订单ID,grain_key,ods_mall_oltp_order_info,order_id,bigint(20),,,,,,1,,2026-05-10
+dwd_trd_place_order_df,TRD,place_order,transaction,一行一笔订单,user_id,用户ID,fk,ods_mall_oltp_order_info,user_id,bigint(20),dim_user,,,,,2,,2026-05-10
+dwd_trd_place_order_df,TRD,place_order,transaction,一行一笔订单,shop_id,门店ID,fk,ods_mall_oltp_order_info,shop_id,bigint(20),dim_shop,,,,,3,,2026-05-10
+dwd_trd_place_order_df,TRD,place_order,transaction,一行一笔订单,order_status,订单状态 1待支付 2已支付 3已发货 4已完成 5已取消,low_card_attr,ods_mall_oltp_order_info,order_status,tinyint(4),,,,,,4,,2026-05-10
+dwd_trd_place_order_df,TRD,place_order,transaction,一行一笔订单,total_amount,订单总金额,measure,ods_mall_oltp_order_info,total_amount,"decimal(16,2)",,sum,元,N,,5,,2026-05-10
+dwd_trd_place_order_df,TRD,place_order,transaction,一行一笔订单,pay_amount,实付金额,measure,ods_mall_oltp_order_info,pay_amount,"decimal(16,2)",,sum,元,N,,6,,2026-05-10
+dwd_trd_place_order_df,TRD,place_order,transaction,一行一笔订单,discount_amount,优惠金额,measure,ods_mall_oltp_order_info,discount_amount,"decimal(16,2)",,sum,元,Y,total_amount - pay_amount,7,,2026-05-10
+dwd_trd_place_order_df,TRD,place_order,transaction,一行一笔订单,order_time,下单时间,business_time,ods_mall_oltp_order_info,order_time,datetime,,,,,,8,,2026-05-10
+dwd_trd_place_order_df,TRD,place_order,transaction,一行一笔订单,pay_time,支付时间,business_time,ods_mall_oltp_order_info,pay_time,datetime,,,,,,9,,2026-05-10
+dwd_trd_order_detail_df,TRD,order_detail,transaction,一行一笔订单中的一个商品明细行,id,自增主键,grain_key,ods_mall_oltp_order_item,id,bigint(20),,,,,,1,,2026-05-10
+dwd_trd_order_detail_df,TRD,order_detail,transaction,一行一笔订单中的一个商品明细行,order_id,订单ID,fk,ods_mall_oltp_order_item,order_id,bigint(20),,,,,,2,,2026-05-10
+dwd_trd_order_detail_df,TRD,order_detail,transaction,一行一笔订单中的一个商品明细行,sku_id,商品ID,fk,ods_mall_oltp_order_item,sku_id,bigint(20),dim_sku,,,,,3,,2026-05-10
+dwd_trd_order_detail_df,TRD,order_detail,transaction,一行一笔订单中的一个商品明细行,sku_name,商品名称,low_card_attr,ods_mall_oltp_order_item,sku_name,varchar(255),,,,,,4,,2026-05-10
+dwd_trd_order_detail_df,TRD,order_detail,transaction,一行一笔订单中的一个商品明细行,quantity,购买数量,measure,ods_mall_oltp_order_item,quantity,int(11),,sum,件,N,,5,,2026-05-10
+dwd_trd_order_detail_df,TRD,order_detail,transaction,一行一笔订单中的一个商品明细行,original_amount,原价金额,measure,ods_mall_oltp_order_item,original_amount,"decimal(16,2)",,sum,元,N,,6,,2026-05-10
+dwd_trd_order_detail_df,TRD,order_detail,transaction,一行一笔订单中的一个商品明细行,split_amount,分摊金额,measure,ods_mall_oltp_order_item,split_amount,"decimal(16,2)",,sum,元,N,,7,,2026-05-10
+dwd_trd_payment_df,TRD,payment,transaction,一行一笔支付交易,pay_id,支付ID,grain_key,ods_mall_oltp_payment_info,pay_id,bigint(20),,,,,,1,,2026-05-10
+dwd_trd_payment_df,TRD,payment,transaction,一行一笔支付交易,order_id,订单ID,fk,ods_mall_oltp_payment_info,order_id,bigint(20),,,,,,2,,2026-05-10
+dwd_trd_payment_df,TRD,payment,transaction,一行一笔支付交易,user_id,用户ID,fk,ods_mall_oltp_payment_info,user_id,bigint(20),dim_user,,,,,3,,2026-05-10
+dwd_trd_payment_df,TRD,payment,transaction,一行一笔支付交易,pay_type,支付方式 支付宝/微信/银行卡,low_card_attr,ods_mall_oltp_payment_info,pay_type,varchar(20),,,,,,4,,2026-05-10
+dwd_trd_payment_df,TRD,payment,transaction,一行一笔支付交易,pay_status,1成功 2失败,low_card_attr,ods_mall_oltp_payment_info,pay_status,tinyint(4),,,,,,5,,2026-05-10
+dwd_trd_payment_df,TRD,payment,transaction,一行一笔支付交易,pay_amount,支付金额,measure,ods_mall_oltp_payment_info,pay_amount,"decimal(16,2)",,sum,元,N,,6,,2026-05-10
+dwd_trd_payment_df,TRD,payment,transaction,一行一笔支付交易,pay_time,支付时间,business_time,ods_mall_oltp_payment_info,pay_time,datetime,,,,,,7,,2026-05-10
+dwd_trd_refund_df,TRD,refund,transaction,一行一笔退款申请,refund_id,退款ID,grain_key,ods_mall_oltp_refund_info,refund_id,bigint(20),,,,,,1,,2026-05-10
+dwd_trd_refund_df,TRD,refund,transaction,一行一笔退款申请,order_id,订单ID,fk,ods_mall_oltp_refund_info,order_id,bigint(20),,,,,,2,,2026-05-10
+dwd_trd_refund_df,TRD,refund,transaction,一行一笔退款申请,user_id,用户ID,fk,ods_mall_oltp_refund_info,user_id,bigint(20),dim_user,,,,,3,,2026-05-10
+dwd_trd_refund_df,TRD,refund,transaction,一行一笔退款申请,sku_id,商品ID,fk,ods_mall_oltp_refund_info,sku_id,bigint(20),dim_sku,,,,,4,,2026-05-10
+dwd_trd_refund_df,TRD,refund,transaction,一行一笔退款申请,refund_status,0申请中 1成功 2拒绝,low_card_attr,ods_mall_oltp_refund_info,refund_status,tinyint(4),,,,,,5,,2026-05-10
+dwd_trd_refund_df,TRD,refund,transaction,一行一笔退款申请,refund_amount,退款金额,measure,ods_mall_oltp_refund_info,refund_amount,"decimal(16,2)",,sum,元,N,,6,,2026-05-10
+dwd_trd_refund_df,TRD,refund,transaction,一行一笔退款申请,refund_time,退款时间,business_time,ods_mall_oltp_refund_info,refund_time,datetime,,,,,,7,,2026-05-10
+dwd_mkt_coupon_usage_df,MKT,coupon_usage,factless,一行一张用户领取的优惠券,id,自增主键,grain_key,ods_mall_oltp_user_coupon,id,bigint(20),,,,,,1,,2026-05-10
+dwd_mkt_coupon_usage_df,MKT,coupon_usage,factless,一行一张用户领取的优惠券,user_id,用户ID,fk,ods_mall_oltp_user_coupon,user_id,bigint(20),dim_user,,,,,2,,2026-05-10
+dwd_mkt_coupon_usage_df,MKT,coupon_usage,factless,一行一张用户领取的优惠券,coupon_id,优惠券ID,fk,ods_mall_oltp_user_coupon,coupon_id,bigint(20),dim_coupon,,,,,3,,2026-05-10
+dwd_mkt_coupon_usage_df,MKT,coupon_usage,factless,一行一张用户领取的优惠券,order_id,使用订单ID,fk,ods_mall_oltp_user_coupon,order_id,bigint(20),,,,,,4,,2026-05-10
+dwd_mkt_coupon_usage_df,MKT,coupon_usage,factless,一行一张用户领取的优惠券,use_status,0未使用 1已使用 2已过期,low_card_attr,ods_mall_oltp_user_coupon,use_status,tinyint(4),,,,,,5,,2026-05-10
+dwd_mkt_coupon_usage_df,MKT,coupon_usage,factless,一行一张用户领取的优惠券,use_time,使用时间,business_time,ods_mall_oltp_user_coupon,use_time,datetime,,,,,,6,,2026-05-10
+dwd_inv_inventory_snapshot_df,INV,inventory_snapshot,periodic_snapshot,一行一个门店一个SKU的库存快照,sku_id,商品ID,grain_key,ods_mall_oltp_stock_info,sku_id,bigint(20),dim_sku,,,,,1,,2026-05-10
+dwd_inv_inventory_snapshot_df,INV,inventory_snapshot,periodic_snapshot,一行一个门店一个SKU的库存快照,shop_id,门店ID,grain_key,ods_mall_oltp_stock_info,shop_id,bigint(20),dim_shop,,,,,2,,2026-05-10
+dwd_inv_inventory_snapshot_df,INV,inventory_snapshot,periodic_snapshot,一行一个门店一个SKU的库存快照,stock_num,库存数量,measure,ods_mall_oltp_stock_info,stock_num,int(11),,sum,件,N,,3,不可跨时间维度累加,2026-05-10
