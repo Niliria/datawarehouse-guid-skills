@@ -1,14 +1,11 @@
 ---
-
 name: ods-generator
-description: 从Excel文件读取表结构信息，智能生成数据仓库ODS层的Hive表结构。当用户需要"生成ODS表结构"、"Excel转Hive DDL"、"创建Hive分区表"、"数据仓库表结构设计"、"批量生成Hive建表语句"时立即触发。特别适用于从业务系统元数据Excel生成标准化的ODS层表结构，支持智能数据类型映射、主外键识别、字段规范化等高级功能。
+description: 从output/metadata_parse这个路径下读取Excel文件读取表结构信息，智能生成数据仓库ODS层的Hive表结构。当用户需要"生成ODS表结构"、"Excel转Hive DDL"、"创建Hive分区表"、"数据仓库表结构设计"、"批量生成Hive建表语句"时立即触发。特别适用于从业务系统元数据Excel生成标准化的ODS层表结构，支持智能数据类型映射、主外键识别、字段规范化等高级功能。
 
 compatibility:
-
-- python3
-- pandas
-- openpyxl
-
+  - python3
+  - pandas
+  - openpyxl
 ---
 
 # Hive ODS 表结构生成器
@@ -71,9 +68,9 @@ compatibility:
 
 ## 使用步骤
 
-1. **准备输入文件**：确保Excel包含必要的列（表名、表中文名、字段名、字段注释）
-2. **调用技能**：提供输入Excel路径、输出Excel路径、输出SQL路径
-3. **查看结果**：检查生成的Excel和SQL文件
+1. **准备输入文件**：将包含表结构信息的Excel文件放入 `output/metadata_parse/` 目录
+2. **调用技能**：skill 会自动从 `output/metadata_parse/` 读取输入文件，并将结果输出到 `output/ods_generator/` 目录
+3. **查看结果**：检查 `output/ods_generator/` 目录下生成的 Excel 和 SQL 文件
 
 ## 实现脚本
 
@@ -414,23 +411,75 @@ def _generate_output_files(
         f.write(f"-- 共 {len(ddl_statements)} 个表\n\n")
         f.write('\n\n'.join(ddl_statements))
 
+def find_input_file(input_dir: str = 'output/metadata_parse') -> str:
+    """
+    在指定目录下查找Excel输入文件
+
+    Args:
+        input_dir: 输入目录路径
+
+    Returns:
+        找到的Excel文件路径
+
+    Raises:
+        FileNotFoundError: 如果没有找到Excel文件
+    """
+    input_path = Path(input_dir)
+
+    if not input_path.exists():
+        raise FileNotFoundError(f"输入目录不存在: {input_dir}")
+
+    # 查找Excel文件 (.xlsx, .xls)
+    excel_files = list(input_path.glob('*.xlsx')) + list(input_path.glob('*.xls'))
+
+    if not excel_files:
+        raise FileNotFoundError(f"在 {input_dir} 目录下未找到Excel文件(.xlsx或.xls)")
+
+    # 如果找到多个，按修改时间排序选择最新的
+    excel_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    selected_file = excel_files[0]
+
+    logger.info(f"找到输入文件: {selected_file}")
+    if len(excel_files) > 1:
+        logger.info(f"(该目录下共有 {len(excel_files)} 个Excel文件，使用最新的: {selected_file.name})")
+
+    return str(selected_file)
+
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description='从Excel生成Hive ODS表结构')
-    parser.add_argument('input_file', help='输入Excel文件路径')
-    parser.add_argument('output_excel', help='输出Excel文件路径')
-    parser.add_argument('output_sql', help='输出SQL文件路径')
+    parser.add_argument('--input-file', default=None,
+                        help='输入Excel文件路径（默认: 自动从 output/metadata_parse/ 查找）')
+    parser.add_argument('--output-dir', default='output/ods_generator',
+                        help='输出目录路径（默认: output/ods_generator）')
     parser.add_argument('--default-system', default='mes',
                         help='默认业务系统标识（默认: mes）')
 
     args = parser.parse_args()
 
     try:
+        # 确定输入文件
+        if args.input_file:
+            input_file = args.input_file
+        else:
+            input_file = find_input_file('output/metadata_parse')
+
+        # 确定输出文件路径
+        output_dir = Path(args.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # 使用输入文件名作为输出文件名基础
+        input_name = Path(input_file).stem
+        output_excel = str(output_dir / f"{input_name}_ods.xlsx")
+        output_sql = str(output_dir / f"{input_name}_ods.sql")
+
+        # 生成ODS表结构
         output_excel, output_sql = generate_ods_from_excel(
-            args.input_file,
-            args.output_excel,
-            args.output_sql,
+            input_file,
+            output_excel,
+            output_sql,
             args.default_system
         )
         print(f"\n✓ 生成完成！")
@@ -448,18 +497,19 @@ if __name__ == "__main__":
 **输入**：
 
 ```
-请从Excel文件生成ODS层表结构：
-- 输入：/data/input/tables_metadata.xlsx
-- 输出Excel：/data/output/ods_tables.xlsx
-- 输出SQL：/data/output/ods_tables.sql
+请生成ODS层表结构
 ```
+
+**处理流程**：
+- 自动从 `output/metadata_parse/` 目录读取 Excel 文件
+- 自动生成结果到 `output/ods_generator/` 目录
 
 **输出**：
 
 ```
 ✓ 生成完成！
-  Excel文件: /data/output/ods_tables.xlsx
-  SQL文件: /data/output/ods_tables.sql
+  Excel文件: output/ods_generator/ods_tables.xlsx
+  SQL文件: output/ods_generator/ods_tables.sql
 ```
 
 ### 示例2：指定默认业务系统
@@ -467,21 +517,24 @@ if __name__ == "__main__":
 **输入**：
 
 ```
-从Excel生成ODS表结构，使用'crm'作为默认业务系统：
-- 输入：/data/input/crm_tables.xlsx
-- 输出Excel：/data/output/crm_ods.xlsx
-- 输出SQL：/data/output/crm_ods.sql
+从Excel生成ODS表结构，使用'crm'作为默认业务系统
 ```
+
+**说明**：
+- 从 `output/metadata_parse/` 读取 crm_tables.xlsx
+- 输出到 `output/ods_generator/` 目录
 
 ### 示例3：处理包含数据类型的元数据
 
 **输入**：
 
 ```
-请根据包含数据类型的Excel生成Hive ODS表结构：
-- 输入：/data/input/detailed_metadata.xlsx（包含'数据类型'和'长度'列）
-- 输出：/data/output/ods_result.xlsx 和 /data/output/ods_result.sql
+请根据包含数据类型的Excel生成Hive ODS表结构
 ```
+
+**说明**：
+- 从 `output/metadata_parse/` 读取包含'数据类型'和'长度'列的 detailed_metadata.xlsx
+- 输出到 `output/ods_generator/` 目录
 
 ## 生成的DDL示例
 

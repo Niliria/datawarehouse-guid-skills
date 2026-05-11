@@ -332,23 +332,75 @@ def _generate_output_files(
         f.write(f"-- 共 {len(ddl_statements)} 个表\n\n")
         f.write('\n\n'.join(ddl_statements))
 
+def find_input_file(input_dir: str = 'output/metadata_parse') -> str:
+    """
+    在指定目录下查找Excel输入文件
+
+    Args:
+        input_dir: 输入目录路径
+
+    Returns:
+        找到的Excel文件路径
+
+    Raises:
+        FileNotFoundError: 如果没有找到Excel文件
+    """
+    input_path = Path(input_dir)
+
+    if not input_path.exists():
+        raise FileNotFoundError(f"输入目录不存在: {input_dir}")
+
+    # 查找Excel文件 (.xlsx, .xls)
+    excel_files = list(input_path.glob('*.xlsx')) + list(input_path.glob('*.xls'))
+
+    if not excel_files:
+        raise FileNotFoundError(f"在 {input_dir} 目录下未找到Excel文件(.xlsx或.xls)")
+
+    # 如果找到多个，返回第一个（可以按修改时间排序选择最新的）
+    excel_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    selected_file = excel_files[0]
+
+    logger.info(f"找到输入文件: {selected_file}")
+    if len(excel_files) > 1:
+        logger.info(f"(该目录下共有 {len(excel_files)} 个Excel文件，使用最新的: {selected_file.name})")
+
+    return str(selected_file)
+
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description='从Excel生成Hive ODS表结构')
-    parser.add_argument('input_file', help='输入Excel文件路径')
-    parser.add_argument('output_excel', help='输出Excel文件路径')
-    parser.add_argument('output_sql', help='输出SQL文件路径')
+    parser.add_argument('--input-file', default=None,
+                        help='输入Excel文件路径（默认: 自动从 output/metadata_parse/ 查找）')
+    parser.add_argument('--output-dir', default='output/ods_generator',
+                        help='输出目录路径（默认: output/ods_generator）')
     parser.add_argument('--default-system', default='mes',
                         help='默认业务系统标识（默认: mes）')
 
     args = parser.parse_args()
 
     try:
+        # 确定输入文件
+        if args.input_file:
+            input_file = args.input_file
+        else:
+            input_file = find_input_file('output/metadata_parse')
+
+        # 确定输出文件路径
+        output_dir = Path(args.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # 使用输入文件名作为输出文件名基础
+        input_name = Path(input_file).stem
+        output_excel = str(output_dir / f"{input_name}_ods.xlsx")
+        output_sql = str(output_dir / f"{input_name}_ods.sql")
+
+        # 生成ODS表结构
         output_excel, output_sql = generate_ods_from_excel(
-            args.input_file,
-            args.output_excel,
-            args.output_sql,
+            input_file,
+            output_excel,
+            output_sql,
             args.default_system
         )
         print(f"\n✓ 生成完成！")
