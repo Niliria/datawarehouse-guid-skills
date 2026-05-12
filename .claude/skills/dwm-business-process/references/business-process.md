@@ -153,7 +153,7 @@ WHERE dt = '${check_dt}';
 | `factless` | 无度量，仅有隐含计数 |
 
 5. 识别派生事实（如 `利润 = 收入 - 成本`），标注计算逻辑，决定存储还是运行时计算
-6. 产出 `dwm_bp_metric`
+6. 产出 `dwm_dwd_fact_spec`（度量信息合并在字段角色='measure' 的行中）
 
 ### 3.7 度量可加性校验
 
@@ -170,7 +170,7 @@ WHERE dt = '${check_dt}';
 
 ### 4.1 `dwm_bp_business_process`（业务过程清单）
 
-一行一个业务过程（仅事实表）。产出格式：CSV，路径 `output/dwm-bus-matrix/business-process/`。
+一行一个业务过程（仅事实表）。产出格式：CSV，路径 `output/dwm-bus-matrix/`。
 
 | 字段名 | 中文说明 | 是否必填 | 取值/规则 |
 |--------|----------|:--:|---------|
@@ -190,7 +190,7 @@ WHERE dt = '${check_dt}';
 
 ### 4.2 `dwm_bp_subject_area`（主题域注册表）
 
-一行一个主题域。产出格式：CSV，路径 `output/dwm-bus-matrix/business-process/`。
+一行一个主题域。产出格式：CSV，路径 `output/dwm-bus-matrix/`。
 
 | 字段名 | 中文说明 | 是否必填 | 取值/规则 |
 |--------|----------|:--:|---------|
@@ -207,25 +207,46 @@ WHERE dt = '${check_dt}';
 >
 > **设计原则**：主题域数量控制在 5~10 个。
 
-### 4.3 `dwm_bp_metric`（度量归属表）
+### 4.3 `dwm_dwd_fact_spec`（DWD 事实表建设清单）
 
-一行一个度量归属。产出格式：CSV，路径 `output/dwm-bus-matrix/business-process/`。
+一行一个字段。产出格式：CSV，路径 `output/dwm-bus-matrix/`。
+
+对每个业务过程（= 一张 DWD 事实表），汇总字段级建设规格：
+1. **DWD 表名**：`dwd_{主题域编码小写}_{业务过程英文名称}_{df/di}`
+2. **字段汇总顺序**：粒度键 → 维度外键 → 退化维度 → 低基数属性 → 度量 → 业务时间
 
 | 字段名 | 中文说明 | 是否必填 | 取值/规则 |
 |--------|----------|:--:|---------|
-| 涉及ODS表 | 事实表名 | 是 | 来自 `dwm_bp_business_process` |
-| 业务过程英文名称 | 业务过程标准名 | 是 | 事实表对应业务过程 |
-| 度量字段名 | 字段英文名 | 是 | ODS 源字段名 |
-| 度量中文名称 | 字段中文注释 | 是 | 来自 `all_tables_metadata.xlsx` 的 `字段注释` 或 `字段注释填充` |
-| 度量类型 | 可加性分类 | 是 | `可加度量` / `半可加度量` / `不可加度量` |
-| 聚合建议 | 推荐聚合函数 | 是 | `sum` / `avg` / `max` / `min` / `count_distinct` |
-| 度量单位 | 单位 | 是 | 元 / 件 / % / 次 等 |
-| 是否派生度量 | 是否计算得来 | 是 | `Y` / `N` |
-| 派生逻辑 | 计算公式 | 条件 | `是否派生度量='Y'` 时必填 |
+| DWD表名 | DWD 表名 | 是 | `dwd_{主题域编码}_{业务过程标准名}_{df/di}` |
+| 事实表中文名称 | 事实表中文名 | 是 | 来自 `dwm_bp_business_process.业务过程中文名称` |
+| 主题域编码 | 所属主题域 | 是 | 关联 `dwm_bp_subject_area` |
+| 业务过程标准名 | 英文标识 | 是 | 来自 `dwm_bp_business_process.业务过程英文名称` |
+| 事实表类型 | Kimball 事实表类型 | 是 | `transaction` / `periodic_snapshot` / `accumulating_snapshot` / `factless` |
+| 粒度声明 | 自然语言描述 | 是 | 来自 `dwm_bp_business_process.粒度声明` |
+| 字段名 | DWD 层字段命名 | 是 | 来自 ODS 字段名 |
+| 字段中文说明 | 字段注释 | 是 | 来自 `all_tables_metadata.xlsx` 的 `字段注释填充` |
+| 字段角色 | 字段在事实表中的角色 | 是 | `grain_key` / `fk` / `degenerate_dim` / `low_card_attr` / `measure` / `business_time` |
+| 来源ODS表 | ODS 表名 | 是 | 来自 `all_tables_metadata.xlsx` 的 `表名` |
+| 来源ODS字段 | ODS 字段名 | 是 | 来自 `all_tables_metadata.xlsx` 的 `字段名` |
+| ODS数据类型 | 字段数据类型 | 是 | 来自 `all_tables_metadata.xlsx` 的 `数据类型` |
+| 度量类型 | 可加性分类 | 条件 | `字段角色='measure'` 时必填：`可加度量` / `半可加度量` / `不可加度量` |
+| 聚合建议 | 推荐聚合函数 | 条件 | `字段角色='measure'` 时必填 |
+| 度量单位 | 单位 | 条件 | `字段角色='measure'` 时必填 |
+| 是否派生 | Y/N | 条件 | `字段角色='measure'` 时必填 |
+| 派生逻辑 | 计算表达式 | 条件 | `是否派生='Y'` 时必填 |
+| 字段排序 | 整数 | 是 | 按 `grain_key→fk→degenerate_dim→low_card_attr→measure→business_time` |
 | 备注 | 额外说明 | 否 | |
-| 更新时间 | 最近修改时间 | 是 | ISO 日期 |
+| 更新时间 | ISO 日期 | 是 | 最近修改时间 |
 
-> 主键：`涉及ODS表 + 度量字段名`
+> 主键：`DWD表名 + 字段名`
+>
+> 字段来源：
+> - 粒度键：来自 `dwm_bp_business_process.粒度键`
+> - FK 字段：来自 `all_tables_metadata.xlsx WHERE 字段角色='foreign_key'`（或命名语义推导）
+> - 退化维度：来自 `all_tables_metadata.xlsx WHERE 字段角色='primary_key'`（事实表中的天然业务键）
+> - 低基数属性：来自 `all_tables_metadata.xlsx WHERE 字段角色='low_cardinality'`
+> - 度量：来自 `all_tables_metadata.xlsx WHERE 字段角色='numeric_measure'`
+> - 业务时间：来自 `all_tables_metadata.xlsx WHERE 字段角色='business_time'`
 
 ---
 
@@ -236,9 +257,8 @@ WHERE dt = '${check_dt}';
 3. 每个业务过程只归属一个主题域（1:1）
 4. `dwm_bp_subject_area` 已定义且引用有效
 5. 高风险歧义关系（接口数据/无约束外键）已人工确认
-6. `dwm_bp_metric` 中每个度量字段已归属，聚合语义与事实表类型匹配
-7. 所有度量字段已填写 `聚合建议` 与 `度量单位`
-8. 派生度量已标注计算逻辑
+6. `dwm_dwd_fact_spec` 中每个度量字段已填写 `度量类型`、`聚合建议`、`度量单位`，聚合语义与事实表类型匹配
+7. 派生度量已标注计算逻辑
 
 ---
 
@@ -250,7 +270,7 @@ WHERE dt = '${check_dt}';
 | dwm-dimension | `dwm_bp_subject_area` | 主题域主数据 |
 | dwm-matrix | `dwm_bp_business_process` | 矩阵行、粒度、事实表类型 |
 | dwm-matrix | `dwm_bp_subject_area` | 主题域清单 |
-| dwm-matrix | `dwm_bp_metric` | 度量归属 → DWD spec 合成 |
+| cdm_modeling | `dwm_dwd_fact_spec` | 生成 DWD DDL + ETL SQL |
 
 ---
 

@@ -46,9 +46,10 @@ version: 2.0.0
 
 | 产出物 | 说明 | 输出路径 |
 |--------|------|----------|
-| `dwm_bp_business_process` | 业务过程清单（含粒度、事实表类型） | `output/dwm-bus-matrix/business-process/` |
-| `dwm_bp_subject_area` | 主题域注册表 | `output/dwm-bus-matrix/business-process/` |
-| `dwm_bp_metric` | 度量归属表 | `output/dwm-bus-matrix/business-process/` |
+| `dwm_bp_business_process` | 业务过程清单（含粒度、事实表类型） | `output/dwm-bus-matrix/` |
+| `dwm_bp_subject_area` | 主题域注册表 | `output/dwm-bus-matrix/` |
+| `dwm_dwd_fact_spec` | DWD 事实表建设清单（字段级，含度量归属） | `output/dwm-bus-matrix/` |
+| `dwm_dwd_join_spec` | DWD 事实表 ODS 关联关系 | `output/dwm-bus-matrix/` |
 
 ## CSV 工具
 

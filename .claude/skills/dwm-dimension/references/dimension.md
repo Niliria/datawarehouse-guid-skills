@@ -35,7 +35,7 @@
 2. `field_role` 为 `primary_key` 且 `is_surrogate='N'`（天然业务键），或字段命名含有业务单号语义（`*_no`、`*_order_id`、`invoice_*`）
 3. 无需以此字段为主键单独建维表分析其属性
 
-判定为退化维度的字段不进入 `dwm_dim_registry`，在组装阶段由 `all_tables_metadata.xlsx` 直接推导。
+判定为退化维度的字段不进入 `dwm_dim_spec`，在事实表中保留为 `degenerate_dim` 角色。
 
 ### 2.3 提取维度外键引用
 
@@ -46,19 +46,19 @@
 3. 补充"是否必选维度"与"缺失容忍策略"（如匿名用户→ UNKNOWN 填充）
 4. 提取退化维度字段（按 §2.2 规则）
 5. 提取低基数离散属性（`field_role='low_cardinality'`），判断是独立 Junk Dimension 还是内联属性
-6. 汇总分析结果，仅将需建 DIM 表的维度注册到 `dwm_dim_registry`
+6. 汇总分析结果，仅将需建 DIM 表的维度注册到 `dwm_dim_spec`
 
 ### 2.4 收敛一致性维度
 
 1. 汇总所有业务过程外键，去重得到一致性维度候选列表
 2. 为每个维度键确定唯一维表来源（从 `all_tables_metadata.xlsx` FK 被引用关系识别维度候选表）
 3. 执行一致性检查：命名、口径、编码、值域、JOIN 命中率
-4. 退化维度与低基数离散属性由组装阶段从 `all_tables_metadata.xlsx` 推导，**不纳入** `dwm_dim_registry`
+4. 退化维度与低基数离散属性由 dwm-business-process 从 `all_tables_metadata.xlsx` 推导，**不纳入** `dwm_dim_spec`
 5. 仅注册需建 DIM 表的一致性维度
 
 ### 2.5 确认 SCD 策略
 
-对 `dwm_dim_registry` 中的每个一致性维度，检查其属性字段中是否有可能随时间变化的属性（用户级别、组织名称等）：
+对 `dwm_dim_spec` 中的每个一致性维度，检查其属性字段中是否有可能随时间变化的属性（用户级别、组织名称等）：
 
 | SCD 类型 | 策略 | 适用场景 |
 |---------|------|---------|
@@ -78,38 +78,42 @@
 
 ## 3. 产出物
 
-### 3.1 `dwm_dim_registry`（一致性维度注册表）
+### 3.1 `dwm_dim_spec`（维度表建设清单）
 
-一行一个一致性维度（需建 DIM 表的维度）。产出格式：CSV，路径 `output/dwm-bus-matrix/dimension/`。
+一行一个字段（合并原 registry + table_spec）。产出格式：CSV，路径 `output/dwm-bus-matrix/`。
 
 | 字段名 | 中文说明 | 是否必填 | 取值/规则 |
 |--------|----------|:--:|---------|
-| 维度编码 | 维度唯一标识 | 是 | 主键，命名格式：`dim_xxx` |
+| 维度表名 | DIM 表名 | 是 | 命名格式：`dim_xxx` |
 | 维度中文名称 | 中文名 | 是 | 如"用户维度" |
 | 维度描述 | 一句话业务含义 | 是 | 描述维度用途 |
 | 来源ODS表 | 源维表名 | 是 | 从 `all_tables_metadata.xlsx` FK 被引用关系识别 |
-| 粒度键 | 业务键/代理键 | 是 | 逗号分隔 |
-| 维度属性字段 | 所有维度属性 | 是 | 逗号分隔 |
-| 建模策略 | 建模方式 | 是 | `独立维表` |
-| SCD策略 | 维度级SCD类型 | 条件 | 取最严格类型：`SCD1` / `SCD2` / `SCD3` / `-` |
-| SCD字段分组 | 按SCD类型分组的字段 | 条件 | `SCD策略 != '-'` 时必填，格式：`SCD2:col1,col2;SCD1:col3` |
-| 关联字段 | 事实表JOIN此维度的字段 | 是 | 通常为粒度键 |
+| SCD策略 | 表级 SCD 类型 | 是 | 取最严格类型：`SCD1` / `SCD2` / `SCD3` / `-` |
 | 是否一致性维度 | 跨事实表共享 | 是 | `Y` / `N` |
 | 跨事实表共享范围 | 共享说明 | 条件 | `是否一致性维度='Y'` 时必填，列出关联的业务过程英文名称 |
+| 字段名 | DIM 层字段命名 | 是 | 来自 ODS 字段名 |
+| 字段中文说明 | 字段注释 | 是 | 来自 `all_tables_metadata.xlsx` 的 `字段注释填充` |
+| 字段角色 | 字段在维度表中的角色 | 是 | `pk`（业务键）/ `bk`（备选键）/ `attribute` |
+| SCD类型 | 字段级 SCD 类型 | 条件 | `字段角色='attribute'` 时必填：`SCD1` / `SCD2` / `SCD3` / `-` |
+| 来源ODS字段 | ODS 字段名 | 是 | 来自 `all_tables_metadata.xlsx` 的 `字段名` |
+| ODS数据类型 | 字段数据类型 | 是 | 来自 `all_tables_metadata.xlsx` 的 `数据类型` |
+| 字段排序 | 整数 | 是 | 按 `pk→bk→attribute` |
 | 备注 | 额外说明 | 否 | |
 | 更新时间 | 最近修改时间 | 是 | ISO 日期 |
 
-> 主键：`维度编码`
+> 主键：`维度表名 + 字段名`
 >
-> **说明**：维度引用关系（哪个事实表引用哪个维度、退化维度、低基数属性）在组装阶段从 `all_tables_metadata.xlsx` 推导，不单独持久化。
+> SCD 管理字段（`dw_start_date`/`dw_end_date`/`dw_is_current`）**不纳入本表**，由 DIM 建设阶段 ETL 自动生成。
+>
+> **说明**：维度引用关系（哪个事实表引用哪个维度）由总线矩阵表达，不在本表中体现。
 
 ---
 
 ## 4. 验收标准
 
-1. `dwm_dim_registry` 中每个维度键有唯一口径定义，跨事实无冲突
+1. `dwm_dim_spec` 中每个维度有唯一口径定义，跨事实无冲突
 2. 维度候选池已剔除技术属性字段（`field_role='tech_meta'` 占比 = 0）
-3. 每个一致性维度中的 SCD 属性字段已确认 SCD 类型，`SCD字段分组` 格式正确
+3. 每个一致性维度中的 SCD 属性字段已确认 SCD 类型
 4. 每个业务过程至少有一个核心分析维度（可从 `all_tables_metadata.xlsx` FK 关系验证）
 
 ---
@@ -118,8 +122,8 @@
 
 | 下游 Skill | 消费数据 | 用途 |
 |-----------|---------|------|
-| dwm-matrix | `dwm_dim_registry` | 总线矩阵列头 + DIM 维度表建设清单合成 |
-| dwm-matrix | `all_tables_metadata.xlsx`（FK 关系） | 总线矩阵格子填充（从 外键引用 映射到 dim_registry）、DWD 字段汇总（退化维度/低基数属性直接从元数据推导） |
+| dwm-matrix | `dwm_dim_spec` | 总线矩阵列头（去重提取唯一维度） |
+| cdm_modeling | `dwm_dim_spec` | 生成 DIM DDL + ETL SQL |
 
 ---
 
@@ -138,7 +142,7 @@ from write_csv import write_csv
 
 ```python
 # 读取业务过程清单
-business_processes = read_csv("output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv")
+business_processes = read_csv("output/dwm-bus-matrix/dwm_bp_business_process.csv")
 
 # 读取字段元数据（外键画像）
 from read_xlsx import read_xlsx

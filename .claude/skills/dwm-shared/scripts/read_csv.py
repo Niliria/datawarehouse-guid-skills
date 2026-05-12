@@ -4,22 +4,22 @@ CSV reader for dwm sub-skills (shared tool).
 
 Usage:
     # Read all rows
-    python read_csv.py output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv
+    python read_csv.py output/dwm-bus-matrix/dwm_bp_business_process.csv
 
     # Filter by column value
-    python read_csv.py output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv --where "主题域编码=TRD"
+    python read_csv.py output/dwm-bus-matrix/dwm_bp_business_process.csv --where "主题域编码=TRD"
 
     # Multiple filters (AND)
-    python read_csv.py output/dwm-bus-matrix/business-process/dwm_bp_metric.csv --where "度量类型=可加度量" --where "涉及ODS表=order_info"
+    python read_csv.py output/dwm-bus-matrix/dwm_dwd_fact_spec.csv --where "度量类型=可加度量" --where "来源ODS表=order_info"
 
     # Select specific columns
-    python read_csv.py output/dwm-bus-matrix/dimension/dwm_dim_registry.csv --select "维度编码,维度中文名称,来源ODS表"
+    python read_csv.py output/dwm-bus-matrix/dwm_dim_spec.csv --select "维度表名,维度中文名称,来源ODS表"
 
     # Count rows
-    python read_csv.py output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv --count
+    python read_csv.py output/dwm-bus-matrix/dwm_bp_business_process.csv --count
 
     # Distinct values of a column
-    python read_csv.py output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv --distinct "主题域编码"
+    python read_csv.py output/dwm-bus-matrix/dwm_bp_business_process.csv --distinct "主题域编码"
 """
 
 import csv

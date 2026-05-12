@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Bus matrix Excel generator for dwm-bus-matrix skill.
+Bus matrix Excel generator for dwm-matrix skill.
 
-Reads business-process/dimension CSV outputs and generates a cross-tab xlsx file.
-Bus matrix grid (fact × dimension) is derived from field metadata FK relations + dim_registry,
+Reads upstream CSV outputs and generates a cross-tab xlsx file.
+Bus matrix grid (fact × dimension) is derived from field metadata FK relations + dim_spec,
 no separate fact-dim-ref CSV needed.
 
 Usage:
     python write_bus_matrix.py \
-        --business-process output/dwm-bus-matrix/business-process/dwm_bp_business_process.csv \
-        --subject-area  output/dwm-bus-matrix/business-process/dwm_bp_subject_area.csv \
-        --dim-registry  output/dwm-bus-matrix/dimension/dwm_dim_registry.csv \
+        --business-process output/dwm-bus-matrix/dwm_bp_business_process.csv \
+        --subject-area  output/dwm-bus-matrix/dwm_bp_subject_area.csv \
+        --dim-registry  output/dwm-bus-matrix/dwm_dim_spec.csv \
         --field-metadata output/metadata_parse/all_tables_metadata.xlsx \
         --output        output/dwm-bus-matrix/dwm_bus_matrix.xlsx \
         --version       v1.0
@@ -21,7 +21,6 @@ Requires: openpyxl (pip install openpyxl)
 import sys
 import os
 import argparse
-from datetime import datetime
 from pathlib import Path
 
 # Reuse shared read_csv/read_xlsx to ensure consistent handling
@@ -41,89 +40,103 @@ except ImportError:
 def build_matrix(
     table_profile: list[dict],
     subject_area: list[dict],
-    dim_registry: list[dict],
+    dim_spec: list[dict],
     field_profile: list[dict],
+    dwd_fact_spec: list[dict] | None = None,
 ) -> tuple[list[dict], list[dict], dict[tuple[str, str], str]]:
     """
     Build bus matrix data structures.
-    Grid cells are derived from field_profile FK relations + dim_registry source table mapping.
+    Grid cells are derived from:
+      1. field_profile FK relations (if 字段角色='foreign_key' exists)
+      2. dwd_fact_spec FK fields matched to dim_spec PK fields (fallback)
 
     Returns:
         - rows: list of fact business processes (sorted by subject area)
-        - columns: list of conformed dimensions
-        - cells: dict of (bp_standard_name, dimension_key) -> marker
+        - columns: list of unique conformed dimensions (deduplicated from field-level dim_spec)
+        - cells: dict of (bp_standard_name, dim_table_name) -> marker
     """
-    # Build subject area lookup - support both Chinese and English headers
-    sa_code_key = "主题域编码" if "主题域编码" in (subject_area[0] if subject_area else {}) else "subject_area_code"
-    sa_name_key = "中文名称" if "中文名称" in (subject_area[0] if subject_area else {}) else "subject_area_name_cn"
-    sa_lookup = {sa[sa_code_key]: sa for sa in subject_area}
+    # Build subject area lookup
+    sa_lookup = {sa["主题域编码"]: sa for sa in subject_area}
 
     # Build rows: one row per business process
     rows = []
     seen_bp = {}
-    # Also build ODS table -> bp_standard_name mapping for grid derivation
     ods_to_bp = {}
     for tp in table_profile:
-        if "table_role" in tp and tp.get("table_role") != "fact":
-            continue
-        bp_name = tp.get("业务过程英文名称", tp.get("bp_standard_name", ""))
-        ods_table = tp.get("涉及ODS表", tp.get("ods_table_name", ""))
+        bp_name = tp.get("业务过程英文名称", "")
+        ods_table = tp.get("涉及ODS表", "")
         if ods_table:
             ods_to_bp[ods_table] = bp_name
         if bp_name in seen_bp:
             continue
-        sa_code = tp.get("主题域编码", tp.get("subject_area_code", ""))
-        sa_name = sa_lookup.get(sa_code, {}).get(sa_name_key, sa_code)
+        sa_code = tp.get("主题域编码", "")
+        sa_name = sa_lookup.get(sa_code, {}).get("中文名称", sa_code)
         seen_bp[bp_name] = True
         rows.append({
             "subject_area_code": sa_code,
             "subject_area_name": sa_name,
-            "business_process": tp.get("业务过程中文名称", tp.get("business_process", "")),
+            "business_process": tp.get("业务过程中文名称", ""),
             "bp_standard_name": bp_name,
             "dwd_table_name": f"dwd_{sa_code.lower()}_{bp_name}_df",
-            "fact_type": tp.get("事实表类型", tp.get("fact_type", "")),
-            "grain_statement": tp.get("粒度声明", tp.get("grain_statement", "")),
+            "fact_type": tp.get("事实表类型", ""),
+            "grain_statement": tp.get("粒度声明", ""),
         })
 
     rows.sort(key=lambda r: (r["subject_area_code"], r["bp_standard_name"]))
 
-    # Build columns: conformed dimensions from dim_registry
-    dim_key_field = "维度编码" if "维度编码" in (dim_registry[0] if dim_registry else {}) else "dimension_key"
-    dim_name_field = "维度中文名称" if "维度中文名称" in (dim_registry[0] if dim_registry else {}) else "dimension_name"
-    dim_src_field = "来源ODS表" if "来源ODS表" in (dim_registry[0] if dim_registry else {}) else "source_dimension_table"
+    # Build columns: deduplicate dim_spec (field-level) to unique dimensions
+    seen_dims = {}
+    for row in dim_spec:
+        dim_key = row.get("维度表名", "")
+        if dim_key and dim_key not in seen_dims:
+            seen_dims[dim_key] = {
+                "维度表名": dim_key,
+                "维度中文名称": row.get("维度中文名称", ""),
+                "来源ODS表": row.get("来源ODS表", ""),
+            }
+    columns = sorted(seen_dims.values(), key=lambda d: d["维度表名"])
 
-    columns = sorted(dim_registry, key=lambda d: d.get(dim_key_field, ""))
-
-    # Build ODS source table -> dimension_key mapping
+    # Build ODS source table -> dim_table_name mapping
     src_to_dim = {}
-    for dim in dim_registry:
-        src_table = dim.get(dim_src_field, "")
+    for dim in columns:
+        src_table = dim.get("来源ODS表", "")
         if src_table:
-            src_to_dim[src_table] = dim.get(dim_key_field, "")
+            src_to_dim[src_table] = dim["维度表名"]
 
     # Build cells: derive from field metadata FK relations
-    # For each fact table's FK field, find its ref_table, map to dimension_key
-    # field_metadata uses Chinese column names: 表名, 字段角色, 外键引用
     cells: dict[tuple[str, str], str] = {}
     for fp in field_profile:
-        role = fp.get("字段角色", fp.get("field_role", ""))
-        if role != "foreign_key":
+        if fp.get("字段角色", "") != "foreign_key":
             continue
-        ods_table = fp.get("表名", fp.get("ods_table_name", ""))
+        ods_table = fp.get("表名", "")
         bp_name = ods_to_bp.get(ods_table, "")
         if not bp_name:
             continue
-        # 外键引用 contains referenced table info (e.g. "table_name.column_name" or "table_name(column_name)")
-        ref_info = fp.get("外键引用", fp.get("ref_table", ""))
+        ref_info = fp.get("外键引用", "")
         if not ref_info:
             continue
-        # Extract ref_table from 外键引用 (handle formats: "table.col", "table(col)", or plain "table")
         ref_table_short = ref_info.split(".")[0].split("(")[0].strip()
-        # Try matching with ODS prefix
         for src_table, dim_key in src_to_dim.items():
             if src_table.endswith(ref_table_short):
-                cells[(bp_name, dim_key)] = "✓"
+                cells[(bp_name, dim_key)] = "Y"
                 break
+
+    # Fallback: derive from dwd_fact_spec FK fields matched to dim PK fields
+    if not cells and dwd_fact_spec:
+        # Build dim PK field -> dim_table_name mapping
+        pk_to_dim: dict[str, str] = {}
+        for row in dim_spec:
+            if row.get("字段角色", "") == "pk":
+                pk_to_dim[row.get("字段名", "")] = row.get("维度表名", "")
+
+        for row in dwd_fact_spec:
+            if row.get("字段角色", "") != "fk":
+                continue
+            bp_name = row.get("业务过程标准名", "")
+            fk_field = row.get("字段名", "")
+            dim_key = pk_to_dim.get(fk_field, "")
+            if bp_name and dim_key:
+                cells[(bp_name, dim_key)] = "Y"
 
     return rows, columns, cells
 
@@ -134,9 +147,6 @@ def write_xlsx(
     cells: dict[tuple[str, str], str],
     output_path: str,
     version: str = "v1.0",
-    status: str = "draft",
-    dim_key_field: str = "维度编码",
-    dim_name_field: str = "维度中文名称",
 ):
     """Generate the bus matrix Excel file."""
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -160,7 +170,7 @@ def write_xlsx(
 
     # -- Header row --
     fixed_headers = ["主题域", "业务过程", "业务过程代码", "粒度声明", "事实表名称", "事实表类型"]
-    dim_headers = [d.get(dim_name_field, d.get(dim_key_field, "")) for d in columns]
+    dim_headers = [d["维度中文名称"] or d["维度表名"] for d in columns]
     all_headers = fixed_headers + dim_headers
 
     for col_idx, header in enumerate(all_headers, 1):
@@ -192,14 +202,12 @@ def write_xlsx(
         ws.cell(row=row_idx, column=6, value=fact_type).border = thin_border
 
         for dim_idx, dim in enumerate(columns):
-            dim_key = dim.get(dim_key_field, "")
-            marker = cells.get((bp_name, dim_key), "-")
+            dim_key = dim["维度表名"]
+            marker = cells.get((bp_name, dim_key), "N")
             cell = ws.cell(row=row_idx, column=7 + dim_idx, value=marker)
             cell.alignment = center_align
             cell.border = thin_border
-            cell.font = check_font if marker == "✓" else dash_font
-
-    last_data_row = data_start_row + len(rows) - 1
+            cell.font = check_font if marker == "Y" else dash_font
 
     # -- Column widths --
     ws.column_dimensions["A"].width = 18
@@ -220,24 +228,23 @@ def main():
     parser = argparse.ArgumentParser(description="Generate bus matrix Excel")
     parser.add_argument("--business-process", required=True, help="Path to dwm_bp_business_process.csv")
     parser.add_argument("--subject-area", required=True, help="Path to dwm_bp_subject_area.csv")
-    parser.add_argument("--dim-registry", required=True, help="Path to dwm_dim_registry.csv")
+    parser.add_argument("--dim-registry", required=True, help="Path to dwm_dim_spec.csv")
     parser.add_argument("--field-metadata", required=True, help="Path to all_tables_metadata.xlsx")
+    parser.add_argument("--dwd-fact-spec", default=None,
+                        help="Path to dwm_dwd_fact_spec.csv (fallback for FK relation derivation)")
     parser.add_argument("--output", "-o", default="output/dwm-bus-matrix/dwm_bus_matrix.xlsx",
                         help="Output xlsx path (default: output/dwm-bus-matrix/dwm_bus_matrix.xlsx)")
     parser.add_argument("--version", "-v", default="v1.0", help="Matrix version (default: v1.0)")
-    parser.add_argument("--status", "-s", default="draft", help="Matrix status (default: draft)")
     args = parser.parse_args()
 
     table_profile = read_csv(args.business_process)
     subject_area = read_csv(args.subject_area)
-    dim_registry = read_csv(args.dim_registry)
+    dim_spec = read_csv(args.dim_registry)
     field_profile = read_xlsx(args.field_metadata)
+    dwd_fact_spec = read_csv(args.dwd_fact_spec) if args.dwd_fact_spec else None
 
-    rows, columns, cells = build_matrix(table_profile, subject_area, dim_registry, field_profile)
-
-    dim_key_field = "维度编码" if "维度编码" in (dim_registry[0] if dim_registry else {}) else "dimension_key"
-    dim_name_field = "维度中文名称" if "维度中文名称" in (dim_registry[0] if dim_registry else {}) else "dimension_name"
-    write_xlsx(rows, columns, cells, args.output, args.version, args.status, dim_key_field, dim_name_field)
+    rows, columns, cells = build_matrix(table_profile, subject_area, dim_spec, field_profile, dwd_fact_spec)
+    write_xlsx(rows, columns, cells, args.output, args.version)
 
 
 if __name__ == "__main__":

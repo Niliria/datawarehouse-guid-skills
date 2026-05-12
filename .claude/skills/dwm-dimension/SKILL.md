@@ -42,7 +42,8 @@ version: 1.0.0
 
 | 产出物 | 说明 | 输出路径 |
 |--------|------|----------|
-| `dwm_dim_registry` | 一致性维度注册表（需建 DIM 表的维度） | `output/dwm-bus-matrix/dimension/` |
+| `dwm_dim_spec` | 维度表建设清单（字段级，合并原 registry + table_spec） | `output/dwm-bus-matrix/` |
+| `dwm_dim_join_spec` | DIM 维度表 ODS 关联关系 | `output/dwm-bus-matrix/` |
 
 ## CSV 工具
 
