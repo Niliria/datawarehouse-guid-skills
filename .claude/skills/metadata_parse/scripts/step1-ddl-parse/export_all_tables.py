@@ -383,6 +383,27 @@ def get_foreign_key_reference(connection, table_name, column_name):
     return ""
 
 
+def get_table_row_count(connection, table_name):
+    """
+    获取表的总行数
+    
+    Args:
+        connection: 数据库连接对象
+        table_name (str): 表名
+        
+    Returns:
+        int: 表的总行数
+    """
+    with connection.cursor() as cursor:
+        try:
+            cursor.execute(f"SELECT COUNT(*) as total FROM {table_name}")
+            result = cursor.fetchone()
+            return result['total'] if result else 0
+        except Exception as e:
+            print(f"警告: 获取 {table_name} 行数失败: {e}")
+            return 0
+
+
 def get_column_stats(connection, table_name, column_name):
     """
     获取字段的统计信息（总行数、非空值数、唯一值数等
@@ -526,7 +547,7 @@ def export_to_single_sheet(metadata_list, output_path, db_type, db_name):
     ws.title = "所有表元数据"
 
     # 定义表头
-    headers = ["数据源类型", "业务数据库名称", "表名", "表中文名", "字段名", "字段注释", "字段注释填充", "数据类型", "是否为空", "默认值", "主键", "外键", "外键引用", "字段空值率", "字段角色"]
+    headers = ["数据源类型", "业务数据库名称", "表名", "表中文名", "表行数", "字段名", "字段注释", "字段注释填充", "数据类型", "是否为空", "默认值", "主键", "外键", "外键引用", "字段空值率", "字段角色"]
 
     # 添加表头
     ws.append(headers)
@@ -555,6 +576,7 @@ def export_to_single_sheet(metadata_list, output_path, db_type, db_name):
             db_name,
             item['table_name'],
             item.get('table_chinese_name', ""),
+            item.get('row_count', 0),
             item['field'],
             item['comment'],
             item['comment_fill'],
@@ -569,7 +591,7 @@ def export_to_single_sheet(metadata_list, output_path, db_type, db_name):
         ])
 
     # 调整列宽
-    column_widths = [12, 20, 35, 25, 25, 30, 30, 20, 10, 15, 8, 8, 30, 12, 15]
+    column_widths = [12, 20, 35, 25, 10, 25, 30, 30, 20, 10, 15, 8, 8, 30, 12, 15]
     for idx, width in enumerate(column_widths, 1):
         ws.column_dimensions[chr(64 + idx)].width = width
 
@@ -612,6 +634,8 @@ def main():
             print(f"  处理表: {table}")
             # 获取表的中文名
             table_chinese_name = get_table_chinese_name(connection, table)
+            # 获取表行数
+            row_count = get_table_row_count(connection, table)
             # 获取表结构
             columns = get_table_metadata(connection, table)
             # 处理每个字段
@@ -641,6 +665,7 @@ def main():
                 metadata_list.append({
                     'table_name': table,
                     'table_chinese_name': table_chinese_name,
+                    'row_count': row_count,
                     'field': field_name,
                     'comment': comment,
                     'comment_fill': comment_fill,
