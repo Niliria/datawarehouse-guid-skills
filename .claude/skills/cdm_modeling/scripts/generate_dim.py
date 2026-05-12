@@ -7,7 +7,6 @@ generate_dim.py - DIM维度表生成模块
 from pathlib import Path
 from typing import Dict, Any
 
-import yaml
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
 
@@ -29,21 +28,12 @@ class DimensionGenerator:
         self.templates_dir = Path(templates_dir)
         self.output_dir = Path(output_dir) if output_dir else None
         self.logger = logger
-        self.dim_rules = self._load_rules("dim_rules.yaml")
-        self.naming_rules = self._load_rules("naming_rules.yaml")
-
-    def _load_rules(self, rule_file: str) -> Dict:
-        rule_path = self.rules_dir / rule_file
-        if rule_path.exists():
-            with open(rule_path, "r", encoding="utf-8") as f:
-                return yaml.safe_load(f) or {}
-        return {}
 
     def generate(self) -> Dict[str, Dict]:
         dim_designs: Dict[str, Dict] = {}
         for dim in self.upstream_model.get("dimensions", []):
             entity = dim["entity"]
-            table_name = f"dim_{entity}"
+            table_name = dim.get("table_name") or f"dim_{entity}"
             scd_type = int(dim.get("scd_type") or self.modeling_config.get("default_scd_type", 1))
             attributes = dim.get("attributes", [])
 
@@ -54,6 +44,7 @@ class DimensionGenerator:
                 "scd_type": scd_type,
                 "business_key": dim.get("business_key") or f"{entity}_id",
                 "attributes": attributes,
+                "scd_tracking_fields": [attr for attr in attributes if int(attr.get("scd_type") or 1) == 2],
                 "scd_fields": ["begin_date", "end_date", "is_active"] if scd_type == 2 else [],
                 "source_tables": dim.get("source_tables", []),
                 "estimated_size": dim.get("estimated_size", "small"),
@@ -84,6 +75,7 @@ class DimensionGenerator:
                 "scd_type": dim_info["scd_type"],
                 "business_key": dim_info["business_key"],
                 "attributes": dim_info["attributes"],
+                "scd_tracking_fields": dim_info.get("scd_tracking_fields", []),
                 "scd_fields": dim_info["scd_fields"],
                 "table_comment": f"维度表: {dim_info.get('display_name', dim_info['entity'])}",
             }

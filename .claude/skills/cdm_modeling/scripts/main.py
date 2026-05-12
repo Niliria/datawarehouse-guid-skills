@@ -92,11 +92,12 @@ class CDMModelingSkill:
             return False
 
     def _parse_upstream_model(self) -> Dict[str, Any]:
-        self.logger.info("Phase 1: 解析上游总线矩阵文档和 ODS 元数据文档")
+        self.logger.info("Phase 1: 解析上游输入")
         input_config = self.config.get("input", {})
+        self.logger.info("使用 DWM DIM/DWD spec CSV/XLSX 作为权威输入")
         parser = UpstreamOutputParser(
-            bus_matrix_doc=input_config["bus_matrix_doc"],
-            ods_metadata_doc=input_config["ods_metadata_doc"],
+            dim_spec_file=input_config.get("dim_spec_file", ""),
+            dwd_fact_spec_file=input_config.get("dwd_fact_spec_file", ""),
             base_dir=self.config_dir,
             logger=self.logger,
         )
@@ -322,9 +323,10 @@ class CDMModelingSkill:
                 errors.append(f"DWD {table_name} 缺少粒度")
             if fact.get("fact_type") != "factless" and not fact.get("measures"):
                 errors.append(f"DWD {table_name} 缺少度量")
-            for dim in fact.get("dimensions", []):
-                if f"dim_{dim}" not in dim_tables:
-                    errors.append(f"DWD {table_name} 引用了不存在的 DIM: dim_{dim}")
+            for dim in fact.get("dimension_refs", []):
+                dim_table = dim.get("table_name") or f"dim_{dim.get('entity')}"
+                if dim_table not in dim_tables:
+                    errors.append(f"DWD {table_name} 引用了不存在的 DIM: {dim_table}")
 
         return errors, warnings
 

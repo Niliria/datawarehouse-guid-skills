@@ -4,21 +4,26 @@ description: >-
   This skill should be used when the user asks to "CDM建模", "DIM设计", "DWD设计",
   "读取总线矩阵文档生成模型", "读取ODS元数据解析文档", "维度表生成", "事实表生成",
   "SCD策略", "拉链表", "星形模型", "代理键生成", "ETL脚本生成", "建表语句生成",
-  or discusses CDM layer modeling from upstream bus-matrix and ODS metadata analysis outputs.
+  or discusses CDM layer modeling from upstream DWM DIM/DWD specs.
 version: 1.3.0
 ---
 
 # CDM 建模 Skill
 
-读取上游 skill 已经产出的总线矩阵解析文档和 ODS 元数据解析文档，生成 CDM 层 DIM/DWD 数据模型、DDL 建表语句、ETL SQL、字段映射清单和校验报告。
+读取上游 skill 已经产出的 DWM DIM/DWD 建设规格，生成 CDM 层 DIM/DWD 数据模型、DDL 建表语句、ETL SQL、字段映射清单和校验报告。
 
 ## 使用边界
 
 将本 skill 用于“上游解析已经完成”的建模场景。不要让本 skill 直接重新解析原始 ODS DDL 或手工推导总线矩阵；上游文档才是事实来源。
 
+OneData 口径：
+- DIM 独立维护一致性维度。
+- DWD 维护原子明细事实，关联 DIM 只获取代理键，不展开维度描述属性。
+- 事实 + 维度属性打宽、汇总指标和应用服务表属于 DWS/ADS，不由本 skill 的 DWD 默认生成。
+
 必需输入：
-- **总线矩阵文档**：包含数据域、业务过程、粒度、一致性维度、度量、源表等说明。
-- **ODS 元数据解析文档**：包含 ODS 表、字段、类型、注释、主键/外键、时间字段、字段分类等说明。
+- **DWM DIM 建设清单**：`dwm_dim_table_spec.csv/.xlsx`，包含 DIM 表、字段、业务键、属性、SCD、来源字段。
+- **DWM DWD 事实表建设清单**：`dwm_dwd_fact_spec.csv/.xlsx`，包含 DWD 表、主题域、业务过程、粒度、维度外键、度量、来源字段。
 
 可选输入：
 - **建模配置**：指定默认 SCD、默认事实类型、输出目录、是否生成 DDL/ETL。
@@ -35,32 +40,19 @@ version: 1.3.0
 
 流程主线：上游文档 → 统一建模上下文 → DIM → DWD → DDL/ETL/docs → 校验报告。
 
-## 推荐输入格式
+## 输入格式
 
-优先使用 YAML 或 JSON 格式，因为字段结构稳定，最适合自动生成：
+仅解析 CSV 和 XLSX。两个输入文件应使用 DWM 总线矩阵 skill 的字段级交付规格：
 
-```yaml
-processes:
-  - domain: 销售
-    business_process: 门店销售
-    grain: 订单明细
-    fact_type: transaction
-    dimensions: [客户, 商品, 店铺, 日期]
-    measures:
-      - name: quantity
-        source_field: sale_qty
-        type: BIGINT
-        description: 销售数量
-        aggregation: SUM
-      - name: amount
-        source_field: sale_amount
-        type: DECIMAL(18,2)
-        description: 销售金额
-        aggregation: SUM
-    source_tables: [ods_sales_order_detail]
-```
+| 文档 | 必要列 |
+|------|--------|
+| DIM spec | `DIM表名`、`维度中文名`、`DIM字段名`、`字段角色`、`SCD类型`、`来源ODS表`、`来源ODS字段`、`ODS字段数据类型` |
+| DWD spec | `DWD表名`、`主题域编码`、`业务过程标准名`、`事实表类型`、`粒度声明`、`DWD字段名`、`来源ODS表`、`来源ODS字段`、`ODS字段数据类型` |
 
-Markdown 文档也可以使用，但应包含标准表格列名，例如 `数据域`、`业务过程`、`粒度`、`一致性维度`、`度量`、`源表`。
+DWD 维度关联规则：
+- `关联DIM表` 非空即视为维度关联，不强依赖 `字段角色=fk`。
+- `关联DIM业务键` 为可选列；缺失时默认使用 `DWD字段名`，再缺失时使用 `来源ODS字段`。
+- ETL join 形态为 `source.来源ODS字段 = 关联DIM表.关联DIM业务键`。
 
 ## 输出约定
 
@@ -86,19 +78,18 @@ output/cdm-modeling/
 ## 建模流程
 
 1. 读取 `skill_config.yaml` 或命令行传入的 `--config`。
-2. 解析上游总线矩阵文档，提取数据域、业务过程、粒度、维度、度量、源表。
-3. 解析上游 ODS 元数据文档，提取字段类型、字段注释、字段分类、主键、外键、时间字段。
-4. 合并两个上游来源，形成统一建模上下文。
+2. 解析 DWM DIM/DWD spec CSV/XLSX，提取维度、业务过程、粒度、维度外键、度量、源表字段。
+3. 合并两个上游来源，形成统一建模上下文。
 5. 生成 DIM 维度表设计，优先使用上游文档中的维度属性和业务键。
 6. 生成 DWD 事实表设计，优先使用总线矩阵文档中的度量和粒度。
 7. 渲染 DDL、ETL、模型清单、字段映射、依赖清单和校验报告。
 
 ## 关键规则
 
-- 维度属性不得再硬编码为 `{entity}_name` 和 `{entity}_code`；必须优先来自 ODS 元数据解析结果。
-- 事实表度量不得再硬编码为 `quantity` 和 `amount`；必须优先来自总线矩阵文档的度量定义。
-- SCD 策略优先级：显式配置或上游文档 > ODS 时间字段和状态字段推断 > 默认策略。
-- DWD 表粒度必须来自总线矩阵文档；缺失时写入 `validation_report.md`。
+- 维度属性不得再硬编码为 `{entity}_name` 和 `{entity}_code`；必须来自 DIM spec。
+- 事实表度量不得再硬编码为 `quantity` 和 `amount`；必须来自 DWD spec。
+- SCD 策略优先级：DIM spec 显式字段 > 默认策略。
+- DWD 表粒度必须来自 DWD spec；缺失时写入 `validation_report.md`。
 - 每个 DWD 事实表必须至少有一个度量；缺失时仍可生成结构草案，但必须在校验报告中标记。
 - 每个维度必须有业务键；无法从上游文档或 ODS 元数据推断时使用 `{entity}_id` 并记录告警。
 
@@ -119,11 +110,9 @@ Reference files:
 - **`references/dwd_design_guide.md`** - DWD 事实表设计指南
 
 Legacy rule files:
-- **`references/legacy-rules/*.yaml`** - 历史 YAML 规则资料。当前主流程不直接执行这些 YAML；优先读取上述 Markdown 规则文档。
-
 Scripts:
 - **`scripts/main.py`** - 主入口
-- **`scripts/parse_upstream_outputs.py`** - 上游总线矩阵和 ODS 元数据文档解析
+- **`scripts/parse_upstream_outputs.py`** - 上游 DWM DIM/DWD spec CSV/XLSX 解析
 - **`scripts/generate_dim.py`** - DIM 设计和 DDL 生成
 - **`scripts/generate_dwd.py`** - DWD 设计和 DDL 生成
 - **`scripts/generate_etl.py`** - ETL 脚本生成

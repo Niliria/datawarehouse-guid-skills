@@ -45,6 +45,7 @@ class ETLScriptGenerator:
                 "business_key": dim_info["business_key"],
                 "scd_type": dim_info["scd_type"],
                 "fields": dim_info.get("attributes", []),
+                "scd_tracking_fields": dim_info.get("scd_tracking_fields", []),
                 "source_table": source_table,
             }
             sql = template.render(context)

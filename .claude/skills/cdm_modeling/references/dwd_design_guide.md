@@ -294,7 +294,7 @@ LEFT JOIN dim_product ON source.product_id = dim_product.product_id
 LEFT JOIN dim_shop ON source.shop_id = dim_shop.shop_id
     AND dim_shop.is_active = 1
 LEFT JOIN dim_date ON source.order_date = dim_date.calendar_date
-WHERE source.pt = '${PT_DATE}';
+WHERE source.pt = '${bizdate}';
 ```
 
 ---

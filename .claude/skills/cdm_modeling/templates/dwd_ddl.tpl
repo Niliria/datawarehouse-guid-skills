@@ -1,8 +1,8 @@
 -- ========================================
 -- DWD 事实表 DDL 模板
 -- ========================================
--- 用于生成 DWD 事实表的建表语句
--- 星形结构：中心是事实表，外围是维度表
+-- OneData 口径：DWD 为原子明细事实表
+-- 只保留事实粒度键、维度代理键、度量和审计字段，不展开 DIM 描述属性
 
 CREATE TABLE IF NOT EXISTS {{ table_name }} (
     -- 事实键
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS {{ table_name }} (
 
     -- 维度外键（包含所有维度：业务维度+日期维度）
     {% for dim in dimensions %}
-    {{ dim.entity }}_sk BIGINT COMMENT '→ dim_{{ dim.entity }}(外键)',
+    {{ dim.entity }}_sk BIGINT COMMENT '→ {{ dim.table_name | default('dim_' ~ dim.entity) }}(外键)',
     {% endfor %}
 
     -- 度量值(可加总)

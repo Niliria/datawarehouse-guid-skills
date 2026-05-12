@@ -1,49 +1,31 @@
 # CDM 建模 Skill 使用指南
 
 版本: 1.3.0  
-定位: 读取上游总线矩阵解析文档和 ODS 元数据解析文档，生成 CDM 层 DIM/DWD 模型产物。
-
-## 五步流程
-
-| 步骤 | 说明 | 详细文档 |
-|-----|------|----------|
-| 第一步 | 上游输入读取与契约校验 | `references/step1-upstream-input.md` |
-| 第二步 | DIM 维度设计 | `references/step2-dim-design.md` |
-| 第三步 | DWD 事实设计 | `references/step3-dwd-design.md` |
-| 第四步 | DDL/ETL 与文档产物生成 | `references/step4-generation.md` |
-| 第五步 | 模型门禁校验 | `references/step5-validation.md` |
+定位: 读取上游 DWM DIM/DWD 建设规格，生成 CDM 层 DIM/DWD 模型产物。
 
 ## 输入
 
-本 skill 不再直接读取原始 `bus_matrix.csv` 或 `ods_metadata/*.sql`。输入来源改为上游 skill 的解析结果：
+本 skill 只解析 CSV 和 XLSX 格式的 DWM 建设规格：
 
-- `bus_matrix_doc`: 总线矩阵解析文档，包含数据域、业务过程、粒度、一致性维度、度量、源表。
-- `ods_metadata_doc`: ODS 元数据解析文档，包含表、字段、类型、说明、字段分类、维度归属。
+- `dim_spec_file`: DIM 建设清单，通常为 `output/dwm-bus-matrix/dwm_dim_table_spec.csv`。
+- `dwd_fact_spec_file`: DWD 事实表建设清单，通常为 `output/dwm-bus-matrix/dwm_dwd_fact_spec.csv`。
 
-推荐使用 YAML 或 JSON。Markdown 文档也可读取，但需要包含标准表格。
+## OneData 建模口径
 
-## 规则文档
+- DIM 独立维护一致性维度，包含代理键、业务键、维度属性和 SCD 字段。
+- DWD 只生成原子明细事实表，包含粒度键、维度代理键、事实描述字段、度量和审计字段。
+- DWD ETL 可以关联 DIM，但默认只落 `{entity}_sk`，不把 DIM 属性打宽进 DWD。
+- 事实 + 维度属性宽表、汇总指标和面向应用的服务表应进入 DWS/ADS，不进入 DWD。
 
-执行建模时优先参考这些规则文档：
-
-- `references/mandatory-modeling-rules.md`: 强制建模规则，冲突时优先级最高。
-- `references/field-classification-rules.md`: 字段分类、类型映射、质量检查。
-- `references/scd-lifecycle-rules.md`: SCD 策略和增量类型判断。
-- `references/anti-patterns.md`: 反模式和禁止项。
-
-历史 YAML 规则已迁移到 `references/legacy-rules/`。这些 YAML 当前不被主流程直接执行，仅作为追溯资料。
-
-## 配置
-
-默认配置文件位于 skill 根目录 `skill_config.yaml`：
+配置示例：
 
 ```yaml
 input:
-  bus_matrix_doc: "examples/basic/bus_matrix_doc.yaml"
-  ods_metadata_doc: "examples/basic/ods_metadata_doc.yaml"
+  dim_spec_file: "../../../output/dwm-bus-matrix/dwm_dim_table_spec.csv"
+  dwd_fact_spec_file: "../../../output/dwm-bus-matrix/dwm_dwd_fact_spec.csv"
 
 output:
-  target_dir: "output/cdm-modeling"
+  target_dir: "../../../output/cdm-modeling"
 
 modeling:
   default_scd_type: 1
@@ -52,97 +34,66 @@ modeling:
   generate_etl: true
 ```
 
-也可以通过命令行传入配置：
+## 必要列
 
-```bash
-python scripts/main.py --config path/to/skill_config.yaml
-```
+DIM spec:
 
-## 总线矩阵文档格式
+| 列名 | 说明 |
+|------|------|
+| `DIM表名` | 目标 DIM 表名 |
+| `维度中文名` | 维度中文名称 |
+| `DIM字段名` | DIM 字段名 |
+| `字段中文说明` | 字段注释 |
+| `字段角色` | `bk` / `attribute` |
+| `SCD类型` | `SCD1` / `SCD2` / `SCD3` / `-` |
+| `来源ODS表` | 源表标识 |
+| `来源ODS字段` | 源字段 |
+| `ODS字段数据类型` | 源字段类型 |
 
-YAML 示例：
+DWD spec:
 
-```yaml
-processes:
-  - domain: 销售
-    business_process: 门店销售
-    grain: 订单明细
-    fact_type: transaction
-    dimensions: [客户, 商品, 店铺, 日期]
-    measures:
-      - name: quantity
-        source_field: sale_qty
-        type: BIGINT
-        description: 销售数量
-        aggregation: SUM
-      - name: amount
-        source_field: sale_amount
-        type: DECIMAL(18,2)
-        description: 销售金额
-        aggregation: SUM
-    source_tables: [ods_sales_order_detail]
-```
-
-Markdown 表格至少包含这些列：
-
-```markdown
-| 数据域 | 业务过程 | 粒度 | 一致性维度 | 度量 | 源表 |
-|---|---|---|---|---|---|
-| 销售 | 门店销售 | 订单明细 | 客户+商品+店铺+日期 | 销售数量+销售金额 | ods_sales_order_detail |
-```
-
-## ODS 元数据解析文档格式
-
-YAML 示例：
-
-```yaml
-tables:
-  - table_name: ods_sales_order_detail
-    domain: 销售
-    fields:
-      - name: customer_id
-        type: STRING
-        description: 客户ID
-        classification: foreign_key
-        dimension: 客户
-      - name: customer_name
-        type: STRING
-        description: 客户名称
-        classification: dimension_attribute
-        dimension: 客户
-      - name: sale_amount
-        type: DECIMAL(18,2)
-        description: 销售金额
-        classification: measure
-```
-
-字段分类建议值：
-
-- `business_key`: 业务主键
-- `foreign_key`: 维度外键
-- `dimension_attribute`: 维度属性
-- `date_key`: 日期维度键
-- `measure`: 度量
-- `create_time` / `update_time`: 生命周期判断字段
+| 列名 | 说明 |
+|------|------|
+| `DWD表名` | 目标 DWD 表名 |
+| `主题域编码` | 主题域编码 |
+| `业务过程标准名` | 业务过程英文名 |
+| `事实表类型` | `transaction` / `periodic_snapshot` / `accumulating_snapshot` / `factless` |
+| `粒度声明` | 事实粒度 |
+| `DWD字段名` | DWD 字段名 |
+| `字段角色` | `grain_key` / `measure` / 其他描述字段；维度关联不强依赖此列 |
+| `关联DIM表` | 非空时表示该字段需要关联 DIM 表 |
+| `关联DIM业务键` | 可选；缺失时默认使用 `DWD字段名`，再缺失时使用 `来源ODS字段` |
+| `聚合建议` | 度量聚合函数 |
+| `来源ODS表` | 源表标识 |
+| `来源ODS字段` | 源字段 |
+| `ODS字段数据类型` | 源字段类型 |
 
 ## 执行
+
+DWD 维度 join 规则：
+
+```sql
+source.来源ODS字段 = 关联DIM表.关联DIM业务键
+```
+
+如果没有 `关联DIM业务键` 列，默认使用当前行的 `DWD字段名`；如果 `DWD字段名` 为空，则使用 `来源ODS字段`。
 
 在 skill 根目录执行：
 
 ```bash
-python scripts/main.py
+python3 scripts/main.py
 ```
 
 使用自定义配置：
 
 ```bash
-python scripts/main.py --config examples/basic/skill_config.yaml
+python3 scripts/main.py --config path/to/skill_config.yaml
 ```
 
 独立校验生成产物：
 
 ```bash
-python scripts/validate_model.py output/cdm-modeling --write-report
+python3 scripts/validate_model.py output/cdm-modeling --write-report
 ```
 
 ## 输出
@@ -166,14 +117,6 @@ output/cdm-modeling/
     └── validation_report.md
 ```
 
-## 生成规则
-
-- DIM 属性优先来自 `ods_metadata_doc` 中标记为 `dimension_attribute` 的字段。
-- DIM 业务键优先来自对应维度的 `_id`、`business_key`、`foreign_key` 或 `date_key` 字段。
-- DWD 度量优先来自 `bus_matrix_doc` 中的 `measures`。
-- DWD 粒度优先来自 `bus_matrix_doc` 中的 `grain`。
-- SCD 策略优先使用上游文档中的显式值；没有显式值时，根据日期维度和更新时间字段推断；再缺失时使用配置默认值。
-
 ## 校验重点
 
 执行后先查看 `docs/validation_report.md`。报告状态分为：
@@ -182,11 +125,11 @@ output/cdm-modeling/
 - `WARN`: 有告警，可审查但需要说明
 - `FAIL`: 有错误，不应进入下游建设
 
-如果报告中出现以下问题，应回到上游文档补充信息：
+常见问题：
 
 - 业务过程缺少粒度
 - 业务过程缺少维度
-- 业务过程缺少度量
+- 非 `factless` 业务过程缺少度量
 - 维度缺少业务键
 - 维度缺少属性字段
 - DWD 引用了不存在的 DIM

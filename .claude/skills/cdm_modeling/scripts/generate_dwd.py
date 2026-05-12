@@ -8,7 +8,6 @@ import re
 from pathlib import Path
 from typing import Dict, Any, List
 
-import yaml
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
 
@@ -32,27 +31,24 @@ class FactTableGenerator:
         self.templates_dir = Path(templates_dir)
         self.output_dir = Path(output_dir) if output_dir else None
         self.logger = logger
-        self.dwd_rules = self._load_rules("dwd_rules.yaml")
-        self.naming_rules = self._load_rules("naming_rules.yaml")
-
-    def _load_rules(self, rule_file: str) -> Dict:
-        rule_path = self.rules_dir / rule_file
-        if rule_path.exists():
-            with open(rule_path, "r", encoding="utf-8") as f:
-                return yaml.safe_load(f) or {}
-        return {}
 
     def generate(self) -> Dict[str, Dict]:
         dwd_designs: Dict[str, Dict] = {}
         for process in self.upstream_model.get("processes", []):
             domain = self._normalize_name(process.get("domain", "default"))
             process_name = self._normalize_name(process.get("business_process", "process"))
-            table_name = f"dwd_{domain}_{process_name}_di"
-            dimensions = self._normalize_dimensions(process.get("dimensions", []))
-            dimension_refs = [
+            table_name = process.get("table_name") or f"dwd_{domain}_{process_name}_di"
+            if process.get("dimensions_authoritative"):
+                dimensions = [self._normalize_name(dim) for dim in process.get("dimensions", [])]
+            elif process.get("dimension_refs"):
+                dimensions = [self._normalize_name(dim) for dim in process.get("dimensions", [])]
+            else:
+                dimensions = self._normalize_dimensions(process.get("dimensions", []))
+            dimension_refs = process.get("dimension_refs") or [
                 {"entity": dim, "business_key": self._dimension_business_key(dim)}
                 for dim in dimensions
             ]
+            dimension_refs = [self._enrich_dimension_ref(dim) for dim in dimension_refs]
             measures = self._normalize_measures(process.get("measures", []))
 
             dwd_designs[table_name] = {
@@ -60,7 +56,7 @@ class FactTableGenerator:
                 "domain": domain,
                 "business_process": process_name,
                 "display_process": process.get("business_process", process_name),
-                "business_key": self._derive_business_key(process_name, process.get("grain", "")),
+                "business_key": process.get("business_key") or self._derive_business_key(process_name, process.get("grain", "")),
                 "dimensions": dimensions,
                 "dimension_refs": dimension_refs,
                 "measures": measures,
@@ -118,6 +114,16 @@ class FactTableGenerator:
         if table_name in self.dim_designs:
             return self.dim_designs[table_name].get("business_key", f"{entity}_id")
         return f"{entity}_id"
+
+    def _enrich_dimension_ref(self, dim: Dict[str, Any]) -> Dict[str, Any]:
+        result = dict(dim)
+        table_name = result.get("table_name") or f"dim_{result['entity']}"
+        result["table_name"] = table_name
+        if table_name in self.dim_designs:
+            result["scd_type"] = self.dim_designs[table_name].get("scd_type", 1)
+        else:
+            result["scd_type"] = result.get("scd_type", 1)
+        return result
 
     def _normalize_measures(self, measures: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         result = []

@@ -1,5 +1,19 @@
 # CDM建模 Skill 规则更新日志
 
+## 版本 1.4.0
+
+**日期**: 2026年5月12日
+
+### 输入收敛
+
+- 上游建模输入收敛为 DWM DIM/DWD spec 文件，仅支持 CSV 和 XLSX。
+- 删除 YAML/JSON/Markdown 上游文档解析代码和 `examples/basic` YAML 示例。
+- `skill_config.yaml` 改为使用 `dim_spec_file` 和 `dwd_fact_spec_file`。
+- DWD 维度关联规则改为以 `关联DIM表` 非空为准，`关联DIM业务键` 可选。
+- ETL 模板统一使用 `pt` 分区字段和 `${bizdate}` 加载日期参数。
+
+---
+
 ## 版本 1.3.0
 
 **日期**: 2026年5月8日
@@ -51,7 +65,7 @@
 ### 架构调整
 
 - 将主流程从直接读取 `bus_matrix.csv` 和 `ods_metadata/*.sql` 改为读取上游 skill 产出的总线矩阵解析文档和 ODS 元数据解析文档。
-- 新增 `scripts/parse_upstream_outputs.py`，支持 YAML、JSON、Markdown 表格三类输入。
+- 新增 `scripts/parse_upstream_outputs.py`，用于读取上游解析文档。
 - 新增 skill 根目录 `skill_config.yaml`，并支持 `python scripts/main.py --config path/to/skill_config.yaml`。
 - 新增 `examples/basic/`，提供最小可运行的上游文档样例。
 
