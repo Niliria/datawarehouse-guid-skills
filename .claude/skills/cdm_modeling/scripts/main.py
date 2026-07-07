@@ -71,7 +71,7 @@ class CDMModelingSkill:
 
     def run(self) -> bool:
         self.logger.info("=" * 60)
-        self.logger.info("CDM 建模 Skill v1.3")
+        self.logger.info("CDM 建模 Skill v1.4")
         self.logger.info("=" * 60)
 
         start_time = datetime.now()
@@ -94,10 +94,15 @@ class CDMModelingSkill:
     def _parse_upstream_model(self) -> Dict[str, Any]:
         self.logger.info("Phase 1: 解析上游输入")
         input_config = self.config.get("input", {})
-        self.logger.info("使用 DWM DIM/DWD spec CSV/XLSX 作为权威输入")
+        self.logger.info("使用 DWM 业务过程、主题域、DIM/DWD spec、总线矩阵作为权威输入")
         parser = UpstreamOutputParser(
+            business_process_file=input_config.get("business_process_file", ""),
+            subject_area_file=input_config.get("subject_area_file", ""),
             dim_spec_file=input_config.get("dim_spec_file", ""),
             dwd_fact_spec_file=input_config.get("dwd_fact_spec_file", ""),
+            bus_matrix_file=input_config.get("bus_matrix_file", ""),
+            dim_join_spec_file=input_config.get("dim_join_spec_file", ""),
+            dwd_join_spec_file=input_config.get("dwd_join_spec_file", ""),
             base_dir=self.config_dir,
             logger=self.logger,
         )
@@ -112,7 +117,6 @@ class CDMModelingSkill:
         generator = DimensionGenerator(
             upstream_model=upstream_model,
             modeling_config=self.config.get("modeling", {}),
-            rules_dir=self.skill_root / "rules",
             templates_dir=self.skill_root / "templates",
             output_dir=self.output_dir if self.config.get("modeling", {}).get("generate_ddl", True) else None,
             logger=self.logger,
@@ -127,7 +131,6 @@ class CDMModelingSkill:
             upstream_model=upstream_model,
             dim_designs=dim_designs,
             modeling_config=self.config.get("modeling", {}),
-            rules_dir=self.skill_root / "rules",
             templates_dir=self.skill_root / "templates",
             output_dir=self.output_dir if self.config.get("modeling", {}).get("generate_ddl", True) else None,
             logger=self.logger,
@@ -144,7 +147,6 @@ class CDMModelingSkill:
         generator = ETLScriptGenerator(
             dim_designs=dim_designs,
             dwd_designs=dwd_designs,
-            rules_dir=self.skill_root / "rules",
             templates_dir=self.skill_root / "templates",
             output_dir=self.output_dir,
             logger=self.logger,
@@ -183,7 +185,15 @@ class CDMModelingSkill:
                 writer.writerow(["说明", f"维度表: {dim['entity']}, SCD Type {dim['scd_type']}"])
                 writer.writerow(["分区字段", "pt"])
                 writer.writerow(["字段", "字段名", "字段类型", "字段说明", "数据来源", "是否为空", "维度"])
-                writer.writerow(["", dim["business_key"], "STRING", f"{dim['entity']}业务键", "首取", "N", "Y"])
+                writer.writerow([
+                    "",
+                    dim["business_key"],
+                    dim.get("business_key_type", "STRING"),
+                    f"{dim['entity']}业务键",
+                    dim.get("business_key_source", dim["business_key"]),
+                    "N",
+                    "Y",
+                ])
                 for attr in dim.get("attributes", []):
                     writer.writerow([
                         "",
@@ -218,7 +228,21 @@ class CDMModelingSkill:
                 writer.writerow(["事实类型", fact["fact_type"]])
                 writer.writerow(["分区字段", "pt"])
                 writer.writerow(["字段", "字段名", "字段类型", "字段说明", "数据来源", "是否为空", "维度", "度量"])
-                writer.writerow(["", fact["business_key"], "STRING", f"{fact['business_process']}业务键", "首取", "N", "", ""])
+                grain_fields = fact.get("grain_fields", [])
+                if grain_fields:
+                    for field in grain_fields:
+                        writer.writerow([
+                            "",
+                            field["name"],
+                            field.get("type") or "STRING",
+                            field.get("description") or field["name"],
+                            field.get("source_field", field["name"]),
+                            "N",
+                            "",
+                            "",
+                        ])
+                else:
+                    writer.writerow(["", fact["business_key"], "STRING", f"{fact['business_process']}业务键", "首取", "N", "", ""])
                 for dim in fact.get("dimension_refs", []):
                     writer.writerow([
                         "",
@@ -228,6 +252,17 @@ class CDMModelingSkill:
                         dim["business_key"],
                         "N",
                         "Y",
+                        "",
+                    ])
+                for field in fact.get("detail_fields", []):
+                    writer.writerow([
+                        "",
+                        field["name"],
+                        field.get("type") or "STRING",
+                        field.get("description") or field["name"],
+                        field.get("source_field", field["name"]),
+                        "Y",
+                        "",
                         "",
                     ])
                 for measure in fact.get("measures", []):
@@ -260,10 +295,14 @@ class CDMModelingSkill:
                     writer.writerow([table_name, attr["name"], source_table, attr.get("source_field", attr["name"]), "dimension_attribute"])
             for table_name, fact in sorted(dwd_designs.items()):
                 source_table = fact.get("source_tables", [""])[0] if fact.get("source_tables") else ""
+                for field in fact.get("grain_fields", []):
+                    writer.writerow([table_name, field["name"], field.get("source_table") or source_table, field.get("source_field", field["name"]), "grain_key"])
                 for dim in fact.get("dimension_refs", []):
                     writer.writerow([table_name, f"{dim['entity']}_sk", source_table, dim["business_key"], "dimension_fk"])
+                for field in fact.get("detail_fields", []):
+                    writer.writerow([table_name, field["name"], field.get("source_table") or source_table, field.get("source_field", field["name"]), field.get("role", "detail")])
                 for measure in fact.get("measures", []):
-                    writer.writerow([table_name, measure["name"], source_table, measure.get("source_field", measure["name"]), "measure"])
+                    writer.writerow([table_name, measure["name"], measure.get("source_table") or source_table, measure.get("source_field", measure["name"]), "measure"])
 
     def _generate_dependency_csv(self, csv_file: Path, dim_designs: Dict[str, Dict], dwd_designs: Dict[str, Dict]) -> None:
         with open(csv_file, "w", newline="", encoding="utf-8") as f:
@@ -271,9 +310,9 @@ class CDMModelingSkill:
             writer.writerow(["layer", "target_table", "depends_on", "load_order", "description"])
             for table_name, dim in sorted(dim_designs.items()):
                 writer.writerow(["DIM", table_name, "+".join(dim.get("source_tables", [])), 1, "维度表依赖上游 ODS/DWS 源"])
-            dim_tables = "+".join(sorted(dim_designs.keys()))
             for table_name, fact in sorted(dwd_designs.items()):
-                depends_on = "+".join([*fact.get("source_tables", []), dim_tables])
+                referenced_dims = [ref.get("table_name", f"dim_{ref.get('entity')}") for ref in fact.get("dimension_refs", [])]
+                depends_on = "+".join([*fact.get("source_tables", []), *referenced_dims])
                 writer.writerow(["DWD", table_name, depends_on, 2, "事实表依赖源事实数据和维度表"])
 
     def _generate_model_design(self, md_file: Path, dim_designs: Dict[str, Dict], dwd_designs: Dict[str, Dict]) -> None:

@@ -7,8 +7,8 @@
 -- SCD Type I: 覆盖更新
 INSERT OVERWRITE TABLE {{ table_name }} PARTITION (pt='${bizdate}')
 SELECT
-    ROW_NUMBER() OVER (ORDER BY source.{{ business_key }}) AS {{ entity }}_sk,
-    CAST(source.{{ business_key }} AS STRING) AS {{ business_key }},
+    ROW_NUMBER() OVER (ORDER BY source.{{ business_key_source | default(business_key) }}) AS {{ entity }}_sk,
+    source.{{ business_key_source | default(business_key) }} AS {{ business_key }},
 {% for field in fields %}
     source.{{ field.source_field | default(field.name) }} AS {{ field.name }},
 {% endfor %}
@@ -22,7 +22,7 @@ WHERE source.pt = '${bizdate}';
 DROP TABLE IF EXISTS tmp_dim_{{ entity }}_new;
 CREATE TABLE tmp_dim_{{ entity }}_new AS
 SELECT
-    CAST(source.{{ business_key }} AS STRING) AS {{ business_key }},
+    source.{{ business_key_source | default(business_key) }} AS {{ business_key }},
 {% for field in fields %}
     source.{{ field.source_field | default(field.name) }} AS {{ field.name }},
 {% endfor %}
@@ -123,7 +123,7 @@ DROP TABLE IF EXISTS tmp_dim_{{ entity }}_changed;
 MERGE INTO {{ table_name }} t
 USING (
     SELECT
-        CAST(source.{{ business_key }} AS STRING) AS {{ business_key }},
+        source.{{ business_key_source | default(business_key) }} AS {{ business_key }},
 {% for field in fields %}
         source.{{ field.source_field | default(field.name) }} AS {{ field.name }},
 {% endfor %}
