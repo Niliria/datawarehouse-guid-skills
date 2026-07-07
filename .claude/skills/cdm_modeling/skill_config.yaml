@@ -1,6 +1,11 @@
 input:
-  dim_spec_file: "../../../output/dwm-bus-matrix/dwm_dim_table_spec.csv"
+  business_process_file: "../../../output/dwm-bus-matrix/dwm_bp_business_process.csv"
+  subject_area_file: "../../../output/dwm-bus-matrix/dwm_bp_subject_area.csv"
+  dim_spec_file: "../../../output/dwm-bus-matrix/dwm_dim_spec.csv"
   dwd_fact_spec_file: "../../../output/dwm-bus-matrix/dwm_dwd_fact_spec.csv"
+  bus_matrix_file: "../../../output/dwm-bus-matrix/dwm_bus_matrix.xlsx"
+  dim_join_spec_file: "../../../output/dwm-bus-matrix/dwm_dim_join_spec.csv"
+  dwd_join_spec_file: "../../../output/dwm-bus-matrix/dwm_dwd_join_spec.csv"
 
 output:
   target_dir: "../../../output/cdm-modeling"

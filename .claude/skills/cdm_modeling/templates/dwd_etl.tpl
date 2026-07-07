@@ -5,11 +5,22 @@
 
 INSERT OVERWRITE TABLE {{ table_name }} PARTITION (pt='${bizdate}')
 SELECT
+{% if grain_fields %}
+{% for field in grain_fields %}
+    source.{{ field.source_field | default(field.name) }} AS {{ field.name }},
+{% endfor %}
+    ROW_NUMBER() OVER (ORDER BY {% for field in grain_fields %}source.{{ field.source_field | default(field.name) }}{% if not loop.last %}, {% endif %}{% endfor %}) AS {{ entity }}_sk,
+{% else %}
     CAST(source.{{ business_key }} AS STRING) AS {{ business_key }},
     ROW_NUMBER() OVER (ORDER BY source.{{ business_key }}) AS {{ entity }}_sk,
+{% endif %}
 
 {% for dim in dimensions %}
     COALESCE(dim_{{ dim.entity }}.{{ dim.entity }}_sk, -1) AS {{ dim.entity }}_sk,
+{% endfor %}
+
+{% for field in detail_fields %}
+    source.{{ field.source_field | default(field.name) }} AS {{ field.name }},
 {% endfor %}
 
 {% for measure in measures %}

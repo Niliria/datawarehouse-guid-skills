@@ -17,14 +17,12 @@ class DimensionGenerator:
         self,
         upstream_model: Dict[str, Any],
         modeling_config: Dict[str, Any],
-        rules_dir: Path,
         templates_dir: Path,
         output_dir: Path = None,
         logger=None,
     ):
         self.upstream_model = upstream_model
         self.modeling_config = modeling_config
-        self.rules_dir = Path(rules_dir)
         self.templates_dir = Path(templates_dir)
         self.output_dir = Path(output_dir) if output_dir else None
         self.logger = logger
@@ -43,10 +41,13 @@ class DimensionGenerator:
                 "display_name": dim.get("name", entity),
                 "scd_type": scd_type,
                 "business_key": dim.get("business_key") or f"{entity}_id",
+                "business_key_source": dim.get("business_key_source") or dim.get("business_key") or f"{entity}_id",
+                "business_key_type": dim.get("business_key_type") or "STRING",
                 "attributes": attributes,
                 "scd_tracking_fields": [attr for attr in attributes if int(attr.get("scd_type") or 1) == 2],
                 "scd_fields": ["begin_date", "end_date", "is_active"] if scd_type == 2 else [],
                 "source_tables": dim.get("source_tables", []),
+                "source_joins": dim.get("source_joins", []),
                 "estimated_size": dim.get("estimated_size", "small"),
             }
             if self.logger:
@@ -74,6 +75,7 @@ class DimensionGenerator:
                 "entity": dim_info["entity"],
                 "scd_type": dim_info["scd_type"],
                 "business_key": dim_info["business_key"],
+                "business_key_type": dim_info["business_key_type"],
                 "attributes": dim_info["attributes"],
                 "scd_tracking_fields": dim_info.get("scd_tracking_fields", []),
                 "scd_fields": dim_info["scd_fields"],
