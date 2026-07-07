@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Excel (xlsx) reader for dwm sub-skills (shared tool).
+Excel (xlsx) reader for dwm sub-sub-skills (shared tool).
 
 Reads upstream metadata xlsx files and returns list of dicts,
 providing a consistent interface similar to read_csv.

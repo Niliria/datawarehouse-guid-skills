@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CSV writer for dwm sub-skills outputs (shared tool).
+CSV writer for dwm sub-sub-skills outputs (shared tool).
 
 Usage:
     # Write from JSON stdin

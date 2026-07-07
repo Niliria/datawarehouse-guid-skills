@@ -1,5 +1,5 @@
-﻿维度表名,来源ODS表,表角色,关联方式,关联条件,备注
-dim_user,user_info,主表,-,-,
-dim_shop,shop_info,主表,-,-,
-dim_sku,sku_info,主表,-,-,
-dim_coupon,coupon_info,主表,-,-,
+﻿维度表名,维度中文名称,来源ODS表,关联方式,关联键,备注,更新时间
+dim_user,用户维度,ods_mall_oltp_user_info_df,direct,user_id,单表映射，无需JOIN,2026-07-07
+dim_shop,门店维度,ods_mall_oltp_shop_info_df,direct,shop_id,单表映射，无需JOIN,2026-07-07
+dim_sku,商品维度,ods_mall_oltp_sku_info_df,direct,sku_id,单表映射，无需JOIN,2026-07-07
+dim_coupon,优惠券维度,ods_mall_oltp_coupon_info_df,direct,coupon_id,单表映射，无需JOIN,2026-07-07

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CSV reader for dwm sub-skills (shared tool).
+CSV reader for dwm sub-sub-skills (shared tool).
 
 Usage:
     # Read all rows
