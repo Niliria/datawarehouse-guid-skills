@@ -6,7 +6,11 @@
 
 CREATE TABLE IF NOT EXISTS dwd_trd_place_order_df (
     -- 事实键
-    order_id STRING COMMENT 'place_order业务键(来自上游总线矩阵粒度)',
+    
+    
+    order_id BIGINT COMMENT '订单ID(粒度键)',
+    
+    
     place_order_sk BIGINT COMMENT 'place_order代理键(事实主键)',
 
     -- 维度外键（包含所有维度：业务维度+日期维度）
@@ -14,6 +18,15 @@ CREATE TABLE IF NOT EXISTS dwd_trd_place_order_df (
     user_sk BIGINT COMMENT '→ dim_user(外键)',
     
     shop_sk BIGINT COMMENT '→ dim_shop(外键)',
+    
+
+    -- 明细描述字段（退化维度、低基数属性、业务时间）
+    
+    order_status TINYINT COMMENT '订单状态',
+    
+    order_time STRING COMMENT '下单时间',
+    
+    pay_time STRING COMMENT '支付时间',
     
 
     -- 度量值(可加总)

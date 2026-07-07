@@ -5,13 +5,23 @@
 
 INSERT OVERWRITE TABLE dwd_mkt_coupon_usage_df PARTITION (pt='${bizdate}')
 SELECT
-    CAST(source.id AS STRING) AS id,
+
+
+    source.id AS id,
+
     ROW_NUMBER() OVER (ORDER BY source.id) AS coupon_usage_sk,
+
 
 
     COALESCE(dim_user.user_sk, -1) AS user_sk,
 
     COALESCE(dim_coupon.coupon_sk, -1) AS coupon_sk,
+
+
+
+    source.use_status AS use_status,
+
+    source.use_time AS use_time,
 
 
 
@@ -25,8 +35,8 @@ SELECT
 
     CURRENT_TIMESTAMP() AS etl_insert_time,
     CURRENT_TIMESTAMP() AS etl_update_time,
-    'ods_mall_oltp_user_coupon' AS source_system
-FROM ods_mall_oltp_user_coupon source
+    'ods_mall_oltp_user_coupon_df' AS source_system
+FROM ods_mall_oltp_user_coupon_df source
 
 LEFT JOIN dim_user dim_user
     ON source.user_id = dim_user.user_id

@@ -8,7 +8,7 @@
 DROP TABLE IF EXISTS tmp_dim_sku_new;
 CREATE TABLE tmp_dim_sku_new AS
 SELECT
-    CAST(source.sku_id AS STRING) AS sku_id,
+    source.sku_id AS sku_id,
 
     source.spu_id AS spu_id,
 
@@ -27,7 +27,7 @@ SELECT
     source.is_on_sale AS is_on_sale,
 
     CURRENT_TIMESTAMP() AS etl_time
-FROM ods_mall_oltp_sku_info source
+FROM ods_mall_oltp_sku_info_df source
 WHERE source.pt = '${bizdate}';
 
 DROP TABLE IF EXISTS tmp_dim_sku_changed;
@@ -66,7 +66,9 @@ WHERE old.is_active = 1
 
       NVL(old.cost_price, '') <> NVL(new.cost_price, '') OR
 
-      NVL(old.sale_price, '') <> NVL(new.sale_price, '')
+      NVL(old.sale_price, '') <> NVL(new.sale_price, '') OR
+
+      NVL(old.is_on_sale, '') <> NVL(new.is_on_sale, '')
 
   );
 

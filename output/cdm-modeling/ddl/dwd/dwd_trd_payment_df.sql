@@ -6,12 +6,25 @@
 
 CREATE TABLE IF NOT EXISTS dwd_trd_payment_df (
     -- 事实键
-    pay_id STRING COMMENT 'payment业务键(来自上游总线矩阵粒度)',
+    
+    
+    pay_id BIGINT COMMENT '支付ID(粒度键)',
+    
+    
     payment_sk BIGINT COMMENT 'payment代理键(事实主键)',
 
     -- 维度外键（包含所有维度：业务维度+日期维度）
     
     user_sk BIGINT COMMENT '→ dim_user(外键)',
+    
+
+    -- 明细描述字段（退化维度、低基数属性、业务时间）
+    
+    pay_type STRING COMMENT '支付方式',
+    
+    pay_status TINYINT COMMENT '支付状态',
+    
+    pay_time STRING COMMENT '支付时间',
     
 
     -- 度量值(可加总)

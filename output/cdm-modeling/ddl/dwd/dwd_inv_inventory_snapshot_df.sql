@@ -6,7 +6,11 @@
 
 CREATE TABLE IF NOT EXISTS dwd_inv_inventory_snapshot_df (
     -- 事实键
-    sku_id STRING COMMENT 'inventory_snapshot业务键(来自上游总线矩阵粒度)',
+    
+    
+    id BIGINT COMMENT '库存记录ID(粒度键)',
+    
+    
     inventory_snapshot_sk BIGINT COMMENT 'inventory_snapshot代理键(事实主键)',
 
     -- 维度外键（包含所有维度：业务维度+日期维度）
@@ -16,9 +20,12 @@ CREATE TABLE IF NOT EXISTS dwd_inv_inventory_snapshot_df (
     shop_sk BIGINT COMMENT '→ dim_shop(外键)',
     
 
+    -- 明细描述字段（退化维度、低基数属性、业务时间）
+    
+
     -- 度量值(可加总)
     
-    stock_num INT COMMENT '库存数量(聚合函数:SUM)',
+    stock_num INT COMMENT '库存数量(聚合函数:AVG)',
     
 
     -- 业务标志

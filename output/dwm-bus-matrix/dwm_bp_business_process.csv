@@ -1,7 +1,7 @@
-﻿业务过程中文名称,业务过程英文名称,业务过程描述,主题域编码,主题域中文名称,涉及ODS表,粒度声明,粒度键,事实表类型,类型判定依据,更新时间
-下单,place_order,用户创建订单的完整记录，一笔订单一行，创建后不可变,TRD,交易域,ods_mall_oltp_order_info_df,一行一笔订单,order_id,transaction,有明确业务事件时间(order_time)+行创建后不可变+含金额度量,2026-07-07
-订单明细,order_item,每笔订单下每个SKU的购买明细，一行一个订单行项目,TRD,交易域,ods_mall_oltp_order_item_df,一行一笔订单商品明细,id,transaction,存在quantity/original_amount等度量+关联order_id和sku_id两个实体+订单创建后行不可变,2026-07-07
-支付,payment,用户支付流水记录，一行一笔支付交易,PAY,支付域,ods_mall_oltp_payment_info_df,一行一笔支付记录,pay_id,transaction,有pay_time事件时间+含pay_amount度量+支付完成后行不可变,2026-07-07
-退款,refund,用户退款记录，一行一笔退款申请,PAY,支付域,ods_mall_oltp_refund_info_df,一行一笔退款记录,refund_id,transaction,有refund_time事件时间+含refund_amount度量+退款完成后行不可变,2026-07-07
-优惠券使用,coupon_usage,用户领取和使用优惠券的行为轨迹，跟踪券从发放到核销/过期的全生命周期,MKT,营销域,ods_mall_oltp_user_coupon_df,一行一张用户优惠券,id,accumulating_snapshot,行随券生命周期推进而更新(create_time→use_time)+多个里程碑时间+use_status状态演进,2026-07-07
-库存,inventory,每日商品库存快照，按SKU+门店记录库存水位,INV,库存域,ods_mall_oltp_stock_info_df,一行一个SKU在一个门店的库存记录,id,periodic_snapshot,按日截面记录库存数量(stock_num为半可加度量)+无明确业务事件时间,2026-07-07
+业务过程中文名称,业务过程英文名称,业务过程描述,主题域编码,主题域中文名称,涉及ODS表,粒度声明,粒度键,事实表类型,类型判定依据,更新时间
+下单,place_order,用户创建订单的业务事件,TRD,交易域,ods_mall_oltp_order_info_df,一行一笔订单,order_id,transaction,"有业务事件时间(order_time)+多度量(total_amount等)+多FK(user_id,shop_id)",2026-07-07
+订单明细,order_detail,订单中每个商品明细的业务事件,TRD,交易域,ods_mall_oltp_order_item_df,一行一笔订单明细,id,transaction,"多度量(quantity,original_amount等)+多FK(order_id,sku_id);明细不可分拆",2026-07-07
+支付,payment,用户完成支付的业务事件,TRD,交易域,ods_mall_oltp_payment_info_df,一行一笔支付交易,pay_id,transaction,"有业务事件时间(pay_time)+多度量(pay_amount)+多FK(order_id,user_id)",2026-07-07
+退款,refund,用户发起退款的业务事件,TRD,交易域,ods_mall_oltp_refund_info_df,一行一笔退款记录,refund_id,transaction,"有业务事件时间(refund_time)+多度量(refund_amount)+多FK(order_id,user_id,sku_id)",2026-07-07
+库存快照,inventory_snapshot,商品在各门店的库存状态,INV,库存域,ods_mall_oltp_stock_info_df,一行一个SKU在一个门店的库存记录,id,periodic_snapshot,"按周期记录库存截面(stock_num为余额类度量)+多FK(sku_id,shop_id);无业务事件时间",2026-07-07
+优惠券使用,coupon_usage,用户使用优惠券的业务事件,MKT,营销域,ods_mall_oltp_user_coupon_df,一行一次用户优惠券使用,id,transaction,"有业务事件时间(use_time)+多FK(user_id,coupon_id,order_id);use_status记录状态变化",2026-07-07

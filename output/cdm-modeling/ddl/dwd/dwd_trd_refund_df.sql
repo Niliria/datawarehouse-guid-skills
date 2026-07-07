@@ -6,7 +6,11 @@
 
 CREATE TABLE IF NOT EXISTS dwd_trd_refund_df (
     -- 事实键
-    refund_id STRING COMMENT 'refund业务键(来自上游总线矩阵粒度)',
+    
+    
+    refund_id BIGINT COMMENT '退款ID(粒度键)',
+    
+    
     refund_sk BIGINT COMMENT 'refund代理键(事实主键)',
 
     -- 维度外键（包含所有维度：业务维度+日期维度）
@@ -14,6 +18,13 @@ CREATE TABLE IF NOT EXISTS dwd_trd_refund_df (
     user_sk BIGINT COMMENT '→ dim_user(外键)',
     
     sku_sk BIGINT COMMENT '→ dim_sku(外键)',
+    
+
+    -- 明细描述字段（退化维度、低基数属性、业务时间）
+    
+    refund_status TINYINT COMMENT '退款状态',
+    
+    refund_time STRING COMMENT '退款时间',
     
 
     -- 度量值(可加总)

@@ -9,7 +9,7 @@
 CREATE TABLE IF NOT EXISTS dim_sku (
     -- 维度键
     sku_sk BIGINT COMMENT 'sku代理键(PK)',
-    sku_id STRING COMMENT 'sku业务键(来自上游ODS元数据解析文档)',
+    sku_id BIGINT COMMENT 'sku业务键(来自上游DWM DIM建设清单)',
     
     -- 维度属性
     
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS dim_sku (
     
     sku_name STRING COMMENT '商品名称',
     
-    category_id BIGINT COMMENT '��类ID',
+    category_id BIGINT COMMENT '品类ID',
     
     category_name STRING COMMENT '品类名称',
     
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS dim_sku (
     
     sale_price DECIMAL(16,2) COMMENT '销售价',
     
-    is_on_sale TINYINT COMMENT '是否上架',
+    is_on_sale TINYINT COMMENT '是否在售',
     
     
     -- SCD II 字段
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS dim_sku (
     etl_insert_time TIMESTAMP COMMENT 'ETL插入时间',
     etl_update_time TIMESTAMP COMMENT 'ETL更新时间'
 )
-COMMENT '维度表: 商品维度'
+COMMENT '维度表: 商品SKU维度'
 PARTITIONED BY (pt STRING COMMENT '分区日期(YYYY-MM-DD)')
 STORED AS ORC
 TBLPROPERTIES ('orc.compress'='SNAPPY');

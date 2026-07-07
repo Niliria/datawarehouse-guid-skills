@@ -8,7 +8,7 @@
 INSERT OVERWRITE TABLE dim_shop PARTITION (pt='${bizdate}')
 SELECT
     ROW_NUMBER() OVER (ORDER BY source.shop_id) AS shop_sk,
-    CAST(source.shop_id AS STRING) AS shop_id,
+    source.shop_id AS shop_id,
 
     source.shop_name AS shop_name,
 
@@ -22,6 +22,6 @@ SELECT
 
     CURRENT_TIMESTAMP() AS etl_insert_time,
     CURRENT_TIMESTAMP() AS etl_update_time
-FROM ods_mall_oltp_shop_info source
+FROM ods_mall_oltp_shop_info_df source
 WHERE source.pt = '${bizdate}';
 

@@ -5,11 +5,23 @@
 
 INSERT OVERWRITE TABLE dwd_trd_payment_df PARTITION (pt='${bizdate}')
 SELECT
-    CAST(source.pay_id AS STRING) AS pay_id,
+
+
+    source.pay_id AS pay_id,
+
     ROW_NUMBER() OVER (ORDER BY source.pay_id) AS payment_sk,
 
 
+
     COALESCE(dim_user.user_sk, -1) AS user_sk,
+
+
+
+    source.pay_type AS pay_type,
+
+    source.pay_status AS pay_status,
+
+    source.pay_time AS pay_time,
 
 
 
@@ -25,8 +37,8 @@ SELECT
 
     CURRENT_TIMESTAMP() AS etl_insert_time,
     CURRENT_TIMESTAMP() AS etl_update_time,
-    'ods_mall_oltp_payment_info' AS source_system
-FROM ods_mall_oltp_payment_info source
+    'ods_mall_oltp_payment_info_df' AS source_system
+FROM ods_mall_oltp_payment_info_df source
 
 LEFT JOIN dim_user dim_user
     ON source.user_id = dim_user.user_id

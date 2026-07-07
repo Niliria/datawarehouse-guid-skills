@@ -1,7 +1,7 @@
-﻿DWD表名,业务过程标准名,来源ODS表,关联方式,关联键,备注,更新时间
-dwd_trd_place_order_df,place_order,ods_mall_oltp_order_info_df,direct,order_id,单表映射，无需JOIN,2026-07-07
-dwd_trd_order_item_df,order_item,ods_mall_oltp_order_item_df,direct,id,单表映射，无需JOIN,2026-07-07
-dwd_pay_payment_df,payment,ods_mall_oltp_payment_info_df,direct,pay_id,单表映射，无需JOIN,2026-07-07
-dwd_pay_refund_df,refund,ods_mall_oltp_refund_info_df,direct,refund_id,单表映射，无需JOIN,2026-07-07
-dwd_mkt_coupon_usage_df,coupon_usage,ods_mall_oltp_user_coupon_df,direct,id,单表映射，无需JOIN,2026-07-07
-dwd_inv_inventory_df,inventory,ods_mall_oltp_stock_info_df,direct,id,单表映射，无需JOIN,2026-07-07
+DWD表名,来源ODS表,关联类型,关联条件,备注,更新时间
+dwd_trd_place_order_df,ods_mall_oltp_order_info_df,1:1,DWD.order_id = ODS.order_id,主表一对一映射,2026-07-07
+dwd_trd_order_detail_df,ods_mall_oltp_order_item_df,1:1,DWD.id = ODS.id,主表一对一映射,2026-07-07
+dwd_trd_payment_df,ods_mall_oltp_payment_info_df,1:1,DWD.pay_id = ODS.pay_id,主表一对一映射,2026-07-07
+dwd_trd_refund_df,ods_mall_oltp_refund_info_df,1:1,DWD.refund_id = ODS.refund_id,主表一对一映射,2026-07-07
+dwd_inv_inventory_snapshot_df,ods_mall_oltp_stock_info_df,1:1,DWD.id = ODS.id,主表一对一映射,2026-07-07
+dwd_mkt_coupon_usage_df,ods_mall_oltp_user_coupon_df,1:1,DWD.id = ODS.id,主表一对一映射,2026-07-07

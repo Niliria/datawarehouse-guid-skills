@@ -5,13 +5,25 @@
 
 INSERT OVERWRITE TABLE dwd_trd_place_order_df PARTITION (pt='${bizdate}')
 SELECT
-    CAST(source.order_id AS STRING) AS order_id,
+
+
+    source.order_id AS order_id,
+
     ROW_NUMBER() OVER (ORDER BY source.order_id) AS place_order_sk,
+
 
 
     COALESCE(dim_user.user_sk, -1) AS user_sk,
 
     COALESCE(dim_shop.shop_sk, -1) AS shop_sk,
+
+
+
+    source.order_status AS order_status,
+
+    source.order_time AS order_time,
+
+    source.pay_time AS pay_time,
 
 
 
@@ -31,8 +43,8 @@ SELECT
 
     CURRENT_TIMESTAMP() AS etl_insert_time,
     CURRENT_TIMESTAMP() AS etl_update_time,
-    'ods_mall_oltp_order_info' AS source_system
-FROM ods_mall_oltp_order_info source
+    'ods_mall_oltp_order_info_df' AS source_system
+FROM ods_mall_oltp_order_info_df source
 
 LEFT JOIN dim_user dim_user
     ON source.user_id = dim_user.user_id

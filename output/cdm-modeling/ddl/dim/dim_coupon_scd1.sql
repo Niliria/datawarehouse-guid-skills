@@ -9,21 +9,21 @@
 CREATE TABLE IF NOT EXISTS dim_coupon (
     -- 维度键
     coupon_sk BIGINT COMMENT 'coupon代理键(PK)',
-    coupon_id STRING COMMENT 'coupon业务键(来自上游ODS元数据解析文档)',
+    coupon_id BIGINT COMMENT 'coupon业务键(来自上游DWM DIM建设清单)',
     
     -- 维度属性
     
     coupon_name STRING COMMENT '优惠券名称',
     
-    discount_type TINYINT COMMENT '1满减 2折扣',
+    discount_type TINYINT COMMENT '优惠类型',
     
-    min_amount DECIMAL(16,2) COMMENT '最低使用金额',
+    min_amount DECIMAL(16,2) COMMENT '最低消费金额',
     
-    discount_amount DECIMAL(16,2) COMMENT '优惠金额/折扣率',
+    discount_amount DECIMAL(16,2) COMMENT '优惠金额',
     
-    start_time STRING COMMENT '生效时间',
+    start_time STRING COMMENT '有效期开始时间',
     
-    end_time STRING COMMENT '失效时间',
+    end_time STRING COMMENT '有效期结束时间',
     
     
     -- 审计字段

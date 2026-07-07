@@ -1,5 +1,5 @@
 -- Hive ODS层表结构定义
--- 生成时间: 2026-05-11 20:54:27
+-- 生成时间: 2026-07-07 14:09:11
 -- 共 10 个表
 
 CREATE TABLE IF NOT EXISTS ods_mall_oltp_coupon_info_df (

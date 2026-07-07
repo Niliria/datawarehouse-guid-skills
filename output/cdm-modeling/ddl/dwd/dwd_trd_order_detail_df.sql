@@ -6,7 +6,11 @@
 
 CREATE TABLE IF NOT EXISTS dwd_trd_order_detail_df (
     -- 事实键
-    id STRING COMMENT 'order_detail业务键(来自上游总线矩阵粒度)',
+    
+    
+    id BIGINT COMMENT '明细ID(粒度键)',
+    
+    
     order_detail_sk BIGINT COMMENT 'order_detail代理键(事实主键)',
 
     -- 维度外键（包含所有维度：业务维度+日期维度）
@@ -14,11 +18,16 @@ CREATE TABLE IF NOT EXISTS dwd_trd_order_detail_df (
     sku_sk BIGINT COMMENT '→ dim_sku(外键)',
     
 
+    -- 明细描述字段（退化维度、低基数属性、业务时间）
+    
+    sku_name STRING COMMENT '商品名称',
+    
+
     -- 度量值(可加总)
     
     quantity INT COMMENT '购买数量(聚合函数:SUM)',
     
-    original_amount DECIMAL(16,2) COMMENT '原价金额(聚合函数:SUM)',
+    original_amount DECIMAL(16,2) COMMENT '商品原价金额(聚合函数:SUM)',
     
     split_amount DECIMAL(16,2) COMMENT '分摊金额(聚合函数:SUM)',
     

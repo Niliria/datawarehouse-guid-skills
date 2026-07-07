@@ -5,13 +5,23 @@
 
 INSERT OVERWRITE TABLE dwd_trd_refund_df PARTITION (pt='${bizdate}')
 SELECT
-    CAST(source.refund_id AS STRING) AS refund_id,
+
+
+    source.refund_id AS refund_id,
+
     ROW_NUMBER() OVER (ORDER BY source.refund_id) AS refund_sk,
+
 
 
     COALESCE(dim_user.user_sk, -1) AS user_sk,
 
     COALESCE(dim_sku.sku_sk, -1) AS sku_sk,
+
+
+
+    source.refund_status AS refund_status,
+
+    source.refund_time AS refund_time,
 
 
 
@@ -27,8 +37,8 @@ SELECT
 
     CURRENT_TIMESTAMP() AS etl_insert_time,
     CURRENT_TIMESTAMP() AS etl_update_time,
-    'ods_mall_oltp_refund_info' AS source_system
-FROM ods_mall_oltp_refund_info source
+    'ods_mall_oltp_refund_info_df' AS source_system
+FROM ods_mall_oltp_refund_info_df source
 
 LEFT JOIN dim_user dim_user
     ON source.user_id = dim_user.user_id

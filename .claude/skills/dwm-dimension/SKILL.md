@@ -49,7 +49,7 @@ version: 1.0.0
 
 ```python
 import sys
-sys.path.insert(0, ".claude/sub-skills/dwm-shared/scripts")
+sys.path.insert(0, ".claude/skills/dwm-shared/scripts")
 from read_csv import read_csv
 from write_csv import write_csv
 ```

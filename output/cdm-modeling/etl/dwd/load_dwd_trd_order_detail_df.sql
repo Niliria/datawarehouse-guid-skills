@@ -5,11 +5,19 @@
 
 INSERT OVERWRITE TABLE dwd_trd_order_detail_df PARTITION (pt='${bizdate}')
 SELECT
-    CAST(source.id AS STRING) AS id,
+
+
+    source.id AS id,
+
     ROW_NUMBER() OVER (ORDER BY source.id) AS order_detail_sk,
 
 
+
     COALESCE(dim_sku.sku_sk, -1) AS sku_sk,
+
+
+
+    source.sku_name AS sku_name,
 
 
 
@@ -29,8 +37,8 @@ SELECT
 
     CURRENT_TIMESTAMP() AS etl_insert_time,
     CURRENT_TIMESTAMP() AS etl_update_time,
-    'ods_mall_oltp_order_item' AS source_system
-FROM ods_mall_oltp_order_item source
+    'ods_mall_oltp_order_item_df' AS source_system
+FROM ods_mall_oltp_order_item_df source
 
 LEFT JOIN dim_sku dim_sku
     ON source.sku_id = dim_sku.sku_id

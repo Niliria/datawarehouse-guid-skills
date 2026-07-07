@@ -9,7 +9,7 @@
 CREATE TABLE IF NOT EXISTS dim_shop (
     -- 维度键
     shop_sk BIGINT COMMENT 'shop代理键(PK)',
-    shop_id STRING COMMENT 'shop业务键(来自上游ODS元数据解析文档)',
+    shop_id BIGINT COMMENT 'shop业务键(来自上游DWM DIM建设清单)',
     
     -- 维度属性
     
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS dim_shop (
     
     city_name STRING COMMENT '城市名称',
     
-    manager_name STRING COMMENT '店长',
+    manager_name STRING COMMENT '店长姓名',
     
     is_open TINYINT COMMENT '是否营业',
     

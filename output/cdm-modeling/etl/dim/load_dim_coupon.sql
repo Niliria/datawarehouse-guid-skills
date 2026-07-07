@@ -8,7 +8,7 @@
 INSERT OVERWRITE TABLE dim_coupon PARTITION (pt='${bizdate}')
 SELECT
     ROW_NUMBER() OVER (ORDER BY source.coupon_id) AS coupon_sk,
-    CAST(source.coupon_id AS STRING) AS coupon_id,
+    source.coupon_id AS coupon_id,
 
     source.coupon_name AS coupon_name,
 
@@ -24,6 +24,6 @@ SELECT
 
     CURRENT_TIMESTAMP() AS etl_insert_time,
     CURRENT_TIMESTAMP() AS etl_update_time
-FROM ods_mall_oltp_coupon_info source
+FROM ods_mall_oltp_coupon_info_df source
 WHERE source.pt = '${bizdate}';
 

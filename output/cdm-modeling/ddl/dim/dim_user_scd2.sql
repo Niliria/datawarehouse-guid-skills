@@ -9,13 +9,13 @@
 CREATE TABLE IF NOT EXISTS dim_user (
     -- 维度键
     user_sk BIGINT COMMENT 'user代理键(PK)',
-    user_id STRING COMMENT 'user业务键(来自上游ODS元数据解析文档)',
+    user_id BIGINT COMMENT 'user业务键(来自上游DWM DIM建设清单)',
     
     -- 维度属性
     
-    user_name STRING COMMENT '用户名',
+    user_name STRING COMMENT '用户名称',
     
-    gender STRING COMMENT '性别 1男 2女',
+    gender STRING COMMENT '性别',
     
     phone STRING COMMENT '手机号',
     

@@ -1,30 +1,30 @@
-﻿维度表名,维度中文名称,维度描述,来源ODS表,SCD策略,是否一致性维度,跨事实表共享范围,字段名,字段中文说明,字段角色,SCD类型,来源ODS字段,ODS数据类型,字段排序,备注,更新时间
-dim_user,用户维度,电商平台注册用户主数据，包含用户基本信息与注册属性,ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",user_id,用户ID,pk,-,user_id,bigint(20),0,,2026-07-07
-dim_user,用户维度,电商平台注册用户主数据，包含用户基本信息与注册属性,ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",user_name,用户名,attribute,SCD1,user_name,varchar(50),2,用户名极少变更，覆盖即可,2026-07-07
-dim_user,用户维度,电商平台注册用户主数据，包含用户基本信息与注册属性,ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",gender,性别,attribute,SCD1,gender,char(1),2,1男 2女，性别不变,2026-07-07
-dim_user,用户维度,电商平台注册用户主数据，包含用户基本信息与注册属性,ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",phone,手机号,attribute,SCD1,phone,varchar(20),2,手机号变更直接覆盖,2026-07-07
-dim_user,用户维度,电商平台注册用户主数据，包含用户基本信息与注册属性,ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",register_time,注册时间,attribute,-,register_time,datetime,2,注册后不可变,2026-07-07
-dim_user,用户维度,电商平台注册用户主数据，包含用户基本信息与注册属性,ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",register_channel,注册渠道,attribute,-,register_channel,varchar(20),2,注册后不可变,2026-07-07
-dim_user,用户维度,电商平台注册用户主数据，包含用户基本信息与注册属性,ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",city_name,所在城市,attribute,SCD2,city_name,varchar(50),2,城市可能变更，需追踪历史用于地域分析,2026-07-07
-dim_shop,门店维度,门店主数据，包含门店基本属性与运营状态,ods_mall_oltp_shop_info_df,SCD2,Y,"place_order,inventory",shop_id,门店ID,pk,-,shop_id,bigint(20),0,,2026-07-07
-dim_shop,门店维度,门店主数据，包含门店基本属性与运营状态,ods_mall_oltp_shop_info_df,SCD2,Y,"place_order,inventory",shop_name,门店名称,attribute,SCD1,shop_name,varchar(100),2,门店更名直接覆盖,2026-07-07
-dim_shop,门店维度,门店主数据，包含门店基本属性与运营状态,ods_mall_oltp_shop_info_df,SCD2,Y,"place_order,inventory",city_id,城市ID,attribute,SCD2,city_id,bigint(20),2,城市归属变更需追踪,2026-07-07
-dim_shop,门店维度,门店主数据，包含门店基本属性与运营状态,ods_mall_oltp_shop_info_df,SCD2,Y,"place_order,inventory",city_name,城市名称,attribute,SCD2,city_name,varchar(50),2,与city_id同步变更,2026-07-07
-dim_shop,门店维度,门店主数据，包含门店基本属性与运营状态,ods_mall_oltp_shop_info_df,SCD2,Y,"place_order,inventory",manager_name,店长,attribute,SCD1,manager_name,varchar(50),2,店长更替直接覆盖,2026-07-07
-dim_shop,门店维度,门店主数据，包含门店基本属性与运营状态,ods_mall_oltp_shop_info_df,SCD2,Y,"place_order,inventory",is_open,是否营业,attribute,SCD2,is_open,tinyint(4),2,开关店状态变更需追踪,2026-07-07
-dim_sku,商品维度,商品SKU主数据，包含商品属性、品类、价格等核心信息,ods_mall_oltp_sku_info_df,SCD2,Y,"order_item,refund,inventory",sku_id,商品SKU ID,pk,-,sku_id,bigint(20),0,,2026-07-07
-dim_sku,商品维度,商品SKU主数据，包含商品属性、品类、价格等核心信息,ods_mall_oltp_sku_info_df,SCD2,Y,"order_item,refund,inventory",spu_id,SPU ID,attribute,SCD1,spu_id,bigint(20),2,SPU归属不变,2026-07-07
-dim_sku,商品维度,商品SKU主数据，包含商品属性、品类、价格等核心信息,ods_mall_oltp_sku_info_df,SCD2,Y,"order_item,refund,inventory",sku_name,商品名称,attribute,SCD1,sku_name,varchar(255),2,商品更名覆盖,2026-07-07
-dim_sku,商品维度,商品SKU主数据，包含商品属性、品类、价格等核心信息,ods_mall_oltp_sku_info_df,SCD2,Y,"order_item,refund,inventory",category_id,品类ID,attribute,SCD2,category_id,bigint(20),2,品类调整需追踪历史,2026-07-07
-dim_sku,商品维度,商品SKU主数据，包含商品属性、品类、价格等核心信息,ods_mall_oltp_sku_info_df,SCD2,Y,"order_item,refund,inventory",category_name,品类名称,attribute,SCD2,category_name,varchar(50),2,与category_id同步变更,2026-07-07
-dim_sku,商品维度,商品SKU主数据，包含商品属性、品类、价格等核心信息,ods_mall_oltp_sku_info_df,SCD2,Y,"order_item,refund,inventory",shop_id,所属门店ID,attribute,SCD2,shop_id,bigint(20),2,商品门店归属变更需追踪,2026-07-07
-dim_sku,商品维度,商品SKU主数据，包含商品属性、品类、价格等核心信息,ods_mall_oltp_sku_info_df,SCD2,Y,"order_item,refund,inventory",cost_price,成本价,attribute,SCD2,cost_price,"decimal(16,2)",2,成本价变动需保留历史,2026-07-07
-dim_sku,商品维度,商品SKU主数据，包含商品属性、品类、价格等核心信息,ods_mall_oltp_sku_info_df,SCD2,Y,"order_item,refund,inventory",sale_price,销售价,attribute,SCD2,sale_price,"decimal(16,2)",2,售价变动需保留历史,2026-07-07
-dim_sku,商品维度,商品SKU主数据，包含商品属性、品类、价格等核心信息,ods_mall_oltp_sku_info_df,SCD2,Y,"order_item,refund,inventory",is_on_sale,是否上架,attribute,SCD1,is_on_sale,tinyint(4),2,上下架状态直接覆盖,2026-07-07
-dim_coupon,优惠券维度,优惠券定义主数据，包含券类型、门槛、减免金额等规则,ods_mall_oltp_coupon_info_df,SCD1,N,coupon_usage,coupon_id,优惠券ID,pk,-,coupon_id,bigint(20),0,,2026-07-07
-dim_coupon,优惠券维度,优惠券定义主数据，包含券类型、门槛、减免金额等规则,ods_mall_oltp_coupon_info_df,SCD1,N,coupon_usage,coupon_name,优惠券名称,attribute,SCD1,coupon_name,varchar(100),2,券定义信息覆盖即可,2026-07-07
-dim_coupon,优惠券维度,优惠券定义主数据，包含券类型、门槛、减免金额等规则,ods_mall_oltp_coupon_info_df,SCD1,N,coupon_usage,discount_type,优惠类型,attribute,-,discount_type,tinyint(4),2,1满减 2折扣，定义后不變,2026-07-07
-dim_coupon,优惠券维度,优惠券定义主数据，包含券类型、门槛、减免金额等规则,ods_mall_oltp_coupon_info_df,SCD1,N,coupon_usage,min_amount,最低消费门槛,attribute,-,min_amount,"decimal(16,2)",2,券规则定义后不變,2026-07-07
-dim_coupon,优惠券维度,优惠券定义主数据，包含券类型、门槛、减免金额等规则,ods_mall_oltp_coupon_info_df,SCD1,N,coupon_usage,discount_amount,减免金额,attribute,-,discount_amount,"decimal(16,2)",2,券规则定义后不變,2026-07-07
-dim_coupon,优惠券维度,优惠券定义主数据，包含券类型、门槛、减免金额等规则,ods_mall_oltp_coupon_info_df,SCD1,N,coupon_usage,start_time,有效期开始,attribute,-,start_time,datetime,2,,2026-07-07
-dim_coupon,优惠券维度,优惠券定义主数据，包含券类型、门槛、减免金额等规则,ods_mall_oltp_coupon_info_df,SCD1,N,coupon_usage,end_time,有效期结束,attribute,-,end_time,datetime,2,,2026-07-07
+维度表名,维度中文名称,维度描述,来源ODS表,SCD策略,是否一致性维度,跨事实表共享范围,字段名,字段中文说明,字段角色,SCD类型,来源ODS字段,ODS数据类型,字段排序,备注,更新时间
+dim_coupon,优惠券维度,"优惠券基础信息,含券面值/门槛/有效期",ods_mall_oltp_coupon_info_df,SCD1,Y,coupon_usage,coupon_id,优惠券ID,pk,-,coupon_id,bigint(20),10,,2026-07-07
+dim_coupon,优惠券维度,"优惠券基础信息,含券面值/门槛/有效期",ods_mall_oltp_coupon_info_df,SCD1,Y,coupon_usage,coupon_name,优惠券名称,attribute,SCD1,coupon_name,varchar(100),20,,2026-07-07
+dim_coupon,优惠券维度,"优惠券基础信息,含券面值/门槛/有效期",ods_mall_oltp_coupon_info_df,SCD1,Y,coupon_usage,discount_type,优惠类型,attribute,SCD1,discount_type,tinyint(4),30,,2026-07-07
+dim_coupon,优惠券维度,"优惠券基础信息,含券面值/门槛/有效期",ods_mall_oltp_coupon_info_df,SCD1,Y,coupon_usage,min_amount,最低消费金额,attribute,SCD1,min_amount,"decimal(16,2)",40,,2026-07-07
+dim_coupon,优惠券维度,"优惠券基础信息,含券面值/门槛/有效期",ods_mall_oltp_coupon_info_df,SCD1,Y,coupon_usage,discount_amount,优惠金额,attribute,SCD1,discount_amount,"decimal(16,2)",50,,2026-07-07
+dim_coupon,优惠券维度,"优惠券基础信息,含券面值/门槛/有效期",ods_mall_oltp_coupon_info_df,SCD1,Y,coupon_usage,start_time,有效期开始时间,attribute,SCD1,start_time,datetime,60,,2026-07-07
+dim_coupon,优惠券维度,"优惠券基础信息,含券面值/门槛/有效期",ods_mall_oltp_coupon_info_df,SCD1,Y,coupon_usage,end_time,有效期结束时间,attribute,SCD1,end_time,datetime,70,,2026-07-07
+dim_shop,门店维度,"门店基础信息,含名称/城市/店长",ods_mall_oltp_shop_info_df,SCD1,Y,"place_order,order_detail,payment,refund,inventory_snapshot,coupon_usage",shop_id,门店ID,pk,-,shop_id,bigint(20),10,,2026-07-07
+dim_shop,门店维度,"门店基础信息,含名称/城市/店长",ods_mall_oltp_shop_info_df,SCD1,Y,"place_order,order_detail,payment,refund,inventory_snapshot,coupon_usage",shop_name,门店名称,attribute,SCD1,shop_name,varchar(100),20,,2026-07-07
+dim_shop,门店维度,"门店基础信息,含名称/城市/店长",ods_mall_oltp_shop_info_df,SCD1,Y,"place_order,order_detail,payment,refund,inventory_snapshot,coupon_usage",city_id,城市ID,attribute,SCD1,city_id,bigint(20),30,,2026-07-07
+dim_shop,门店维度,"门店基础信息,含名称/城市/店长",ods_mall_oltp_shop_info_df,SCD1,Y,"place_order,order_detail,payment,refund,inventory_snapshot,coupon_usage",city_name,城市名称,attribute,SCD1,city_name,varchar(50),40,,2026-07-07
+dim_shop,门店维度,"门店基础信息,含名称/城市/店长",ods_mall_oltp_shop_info_df,SCD1,Y,"place_order,order_detail,payment,refund,inventory_snapshot,coupon_usage",manager_name,店长姓名,attribute,SCD1,manager_name,varchar(50),50,,2026-07-07
+dim_shop,门店维度,"门店基础信息,含名称/城市/店长",ods_mall_oltp_shop_info_df,SCD1,Y,"place_order,order_detail,payment,refund,inventory_snapshot,coupon_usage",is_open,是否营业,attribute,SCD1,is_open,tinyint(4),60,,2026-07-07
+dim_sku,商品SKU维度,"商品SKU基础信息,含分类/价格,需追踪价格变化",ods_mall_oltp_sku_info_df,SCD2,Y,"order_detail,refund,inventory_snapshot",sku_id,商品SKU ID,pk,-,sku_id,bigint(20),10,,2026-07-07
+dim_sku,商品SKU维度,"商品SKU基础信息,含分类/价格,需追踪价格变化",ods_mall_oltp_sku_info_df,SCD2,Y,"order_detail,refund,inventory_snapshot",spu_id,SPU ID,attribute,SCD1,spu_id,bigint(20),20,,2026-07-07
+dim_sku,商品SKU维度,"商品SKU基础信息,含分类/价格,需追踪价格变化",ods_mall_oltp_sku_info_df,SCD2,Y,"order_detail,refund,inventory_snapshot",sku_name,商品名称,attribute,SCD1,sku_name,varchar(255),30,,2026-07-07
+dim_sku,商品SKU维度,"商品SKU基础信息,含分类/价格,需追踪价格变化",ods_mall_oltp_sku_info_df,SCD2,Y,"order_detail,refund,inventory_snapshot",category_id,品类ID,attribute,SCD1,category_id,bigint(20),40,,2026-07-07
+dim_sku,商品SKU维度,"商品SKU基础信息,含分类/价格,需追踪价格变化",ods_mall_oltp_sku_info_df,SCD2,Y,"order_detail,refund,inventory_snapshot",category_name,品类名称,attribute,SCD1,category_name,varchar(50),50,,2026-07-07
+dim_sku,商品SKU维度,"商品SKU基础信息,含分类/价格,需追踪价格变化",ods_mall_oltp_sku_info_df,SCD2,Y,"order_detail,refund,inventory_snapshot",shop_id,门店ID,attribute,SCD1,shop_id,bigint(20),60,关联dim_shop,2026-07-07
+dim_sku,商品SKU维度,"商品SKU基础信息,含分类/价格,需追踪价格变化",ods_mall_oltp_sku_info_df,SCD2,Y,"order_detail,refund,inventory_snapshot",cost_price,成本价,attribute,SCD2,cost_price,"decimal(16,2)",70,需追踪价格变化历史,2026-07-07
+dim_sku,商品SKU维度,"商品SKU基础信息,含分类/价格,需追踪价格变化",ods_mall_oltp_sku_info_df,SCD2,Y,"order_detail,refund,inventory_snapshot",sale_price,销售价,attribute,SCD2,sale_price,"decimal(16,2)",80,需追踪价格变化历史,2026-07-07
+dim_sku,商品SKU维度,"商品SKU基础信息,含分类/价格,需追踪价格变化",ods_mall_oltp_sku_info_df,SCD2,Y,"order_detail,refund,inventory_snapshot",is_on_sale,是否在售,attribute,SCD2,is_on_sale,tinyint(4),90,上/下架状态需追踪,2026-07-07
+dim_user,用户维度,"用户基础信息,含注册渠道/城市,需追踪属性变化",ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",user_id,用户ID,pk,-,user_id,bigint(20),10,,2026-07-07
+dim_user,用户维度,"用户基础信息,含注册渠道/城市,需追踪属性变化",ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",user_name,用户名称,attribute,SCD1,user_name,varchar(50),20,,2026-07-07
+dim_user,用户维度,"用户基础信息,含注册渠道/城市,需追踪属性变化",ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",gender,性别,attribute,SCD1,gender,char(1),30,,2026-07-07
+dim_user,用户维度,"用户基础信息,含注册渠道/城市,需追踪属性变化",ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",phone,手机号,attribute,SCD2,phone,varchar(20),40,手机号可能变更,2026-07-07
+dim_user,用户维度,"用户基础信息,含注册渠道/城市,需追踪属性变化",ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",register_time,注册时间,attribute,-,register_time,datetime,50,,2026-07-07
+dim_user,用户维度,"用户基础信息,含注册渠道/城市,需追踪属性变化",ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",register_channel,注册渠道,attribute,-,register_channel,varchar(20),60,,2026-07-07
+dim_user,用户维度,"用户基础信息,含注册渠道/城市,需追踪属性变化",ods_mall_oltp_user_info_df,SCD2,Y,"place_order,payment,refund,coupon_usage",city_name,所在城市,attribute,SCD2,city_name,varchar(50),70,城市可能变更,2026-07-07

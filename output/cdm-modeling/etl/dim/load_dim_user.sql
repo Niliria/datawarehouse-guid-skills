@@ -8,7 +8,7 @@
 DROP TABLE IF EXISTS tmp_dim_user_new;
 CREATE TABLE tmp_dim_user_new AS
 SELECT
-    CAST(source.user_id AS STRING) AS user_id,
+    source.user_id AS user_id,
 
     source.user_name AS user_name,
 
@@ -23,7 +23,7 @@ SELECT
     source.city_name AS city_name,
 
     CURRENT_TIMESTAMP() AS etl_time
-FROM ods_mall_oltp_user_info source
+FROM ods_mall_oltp_user_info_df source
 WHERE source.pt = '${bizdate}';
 
 DROP TABLE IF EXISTS tmp_dim_user_changed;
@@ -55,6 +55,8 @@ INNER JOIN tmp_dim_user_new new
 WHERE old.is_active = 1
 
   AND (
+
+      NVL(old.phone, '') <> NVL(new.phone, '') OR
 
       NVL(old.city_name, '') <> NVL(new.city_name, '')
 

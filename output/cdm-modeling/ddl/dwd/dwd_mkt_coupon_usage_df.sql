@@ -6,7 +6,11 @@
 
 CREATE TABLE IF NOT EXISTS dwd_mkt_coupon_usage_df (
     -- 事实键
-    id STRING COMMENT 'coupon_usage业务键(来自上游总线矩阵粒度)',
+    
+    
+    id BIGINT COMMENT '使用记录ID(粒度键)',
+    
+    
     coupon_usage_sk BIGINT COMMENT 'coupon_usage代理键(事实主键)',
 
     -- 维度外键（包含所有维度：业务维度+日期维度）
@@ -14,6 +18,13 @@ CREATE TABLE IF NOT EXISTS dwd_mkt_coupon_usage_df (
     user_sk BIGINT COMMENT '→ dim_user(外键)',
     
     coupon_sk BIGINT COMMENT '→ dim_coupon(外键)',
+    
+
+    -- 明细描述字段（退化维度、低基数属性、业务时间）
+    
+    use_status TINYINT COMMENT '使用状态',
+    
+    use_time STRING COMMENT '使用时间',
     
 
     -- 度量值(可加总)
