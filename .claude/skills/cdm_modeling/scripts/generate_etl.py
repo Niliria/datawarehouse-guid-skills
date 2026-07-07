@@ -13,10 +13,9 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 class ETLScriptGenerator:
     """ETL脚本生成器。"""
 
-    def __init__(self, dim_designs: Dict, dwd_designs: Dict, rules_dir: Path, templates_dir: Path, output_dir: Path, logger=None):
+    def __init__(self, dim_designs: Dict, dwd_designs: Dict, templates_dir: Path, output_dir: Path, logger=None):
         self.dim_designs = dim_designs
         self.dwd_designs = dwd_designs
-        self.rules_dir = Path(rules_dir)
         self.templates_dir = Path(templates_dir)
         self.output_dir = Path(output_dir)
         self.logger = logger
@@ -43,6 +42,7 @@ class ETLScriptGenerator:
                 "table_name": table_name,
                 "entity": dim_info["entity"],
                 "business_key": dim_info["business_key"],
+                "business_key_source": dim_info.get("business_key_source", dim_info["business_key"]),
                 "scd_type": dim_info["scd_type"],
                 "fields": dim_info.get("attributes", []),
                 "scd_tracking_fields": dim_info.get("scd_tracking_fields", []),
@@ -73,9 +73,11 @@ class ETLScriptGenerator:
                 "table_name": table_name,
                 "entity": dwd_info["business_process"],
                 "business_key": dwd_info["business_key"],
+                "grain_fields": dwd_info.get("grain_fields", []),
                 "domain": dwd_info["domain"],
                 "source_table": source_table,
                 "dimensions": dwd_info.get("dimension_refs", [{"entity": dim, "business_key": f"{dim}_id"} for dim in dwd_info.get("dimensions", [])]),
+                "detail_fields": dwd_info.get("detail_fields", []),
                 "measures": dwd_info.get("measures", []),
                 "table_comment": f"事实表: {dwd_info['domain']}-{dwd_info['business_process']}",
             }

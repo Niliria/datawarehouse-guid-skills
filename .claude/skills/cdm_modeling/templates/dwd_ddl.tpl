@@ -6,12 +6,23 @@
 
 CREATE TABLE IF NOT EXISTS {{ table_name }} (
     -- 事实键
-    {{ business_key }} STRING COMMENT '{{ entity }}业务键(来自上游总线矩阵粒度)',
+    {% if grain_fields %}
+    {% for field in grain_fields %}
+    {{ field.name }} {{ field.type }} COMMENT '{{ field.description }}(粒度键)',
+    {% endfor %}
+    {% else %}
+    {{ business_key }} STRING COMMENT '{{ entity }}业务键(来自上游业务过程粒度)',
+    {% endif %}
     {{ entity }}_sk BIGINT COMMENT '{{ entity }}代理键(事实主键)',
 
     -- 维度外键（包含所有维度：业务维度+日期维度）
     {% for dim in dimensions %}
     {{ dim.entity }}_sk BIGINT COMMENT '→ {{ dim.table_name | default('dim_' ~ dim.entity) }}(外键)',
+    {% endfor %}
+
+    -- 明细描述字段（退化维度、低基数属性、业务时间）
+    {% for field in detail_fields %}
+    {{ field.name }} {{ field.type }} COMMENT '{{ field.description }}',
     {% endfor %}
 
     -- 度量值(可加总)

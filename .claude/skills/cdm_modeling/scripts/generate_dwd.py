@@ -19,7 +19,6 @@ class FactTableGenerator:
         upstream_model: Dict[str, Any],
         dim_designs: Dict[str, Dict],
         modeling_config: Dict[str, Any],
-        rules_dir: Path,
         templates_dir: Path,
         output_dir: Path = None,
         logger=None,
@@ -27,7 +26,6 @@ class FactTableGenerator:
         self.upstream_model = upstream_model
         self.dim_designs = dim_designs
         self.modeling_config = modeling_config
-        self.rules_dir = Path(rules_dir)
         self.templates_dir = Path(templates_dir)
         self.output_dir = Path(output_dir) if output_dir else None
         self.logger = logger
@@ -50,6 +48,9 @@ class FactTableGenerator:
             ]
             dimension_refs = [self._enrich_dimension_ref(dim) for dim in dimension_refs]
             measures = self._normalize_measures(process.get("measures", []))
+            grain_fields = process.get("fields", [])
+            grain_fields = [field for field in grain_fields if field.get("role") == "grain_key"]
+            detail_fields = process.get("detail_fields", [])
 
             dwd_designs[table_name] = {
                 "table_name": table_name,
@@ -57,12 +58,17 @@ class FactTableGenerator:
                 "business_process": process_name,
                 "display_process": process.get("business_process", process_name),
                 "business_key": process.get("business_key") or self._derive_business_key(process_name, process.get("grain", "")),
+                "grain_keys": process.get("grain_keys", []),
+                "grain_fields": grain_fields,
                 "dimensions": dimensions,
                 "dimension_refs": dimension_refs,
+                "detail_fields": detail_fields,
+                "fields": process.get("fields", []),
                 "measures": measures,
                 "grain": process.get("grain") or self._derive_business_key(process_name, ""),
                 "fact_type": process.get("fact_type") or self.modeling_config.get("default_fact_type", "transaction"),
                 "source_tables": process.get("source_tables", []),
+                "source_joins": process.get("source_joins", []),
                 "estimated_size": "large",
             }
             if self.logger:
@@ -91,8 +97,10 @@ class FactTableGenerator:
                 "domain": dwd_info["domain"],
                 "business_process": dwd_info["business_process"],
                 "business_key": dwd_info["business_key"],
+                "grain_fields": dwd_info.get("grain_fields", []),
                 "grain": dwd_info["grain"],
                 "dimensions": dwd_info["dimension_refs"],
+                "detail_fields": dwd_info.get("detail_fields", []),
                 "measures": dwd_info["measures"],
                 "table_comment": f"事实表: {dwd_info['domain']}-{dwd_info['display_process']}",
             }
@@ -131,9 +139,14 @@ class FactTableGenerator:
             result.append({
                 "name": measure.get("name") or self._normalize_name(measure.get("description", "measure")),
                 "source_field": measure.get("source_field") or measure.get("name"),
+                "source_table": measure.get("source_table", ""),
                 "type": measure.get("type") or "DECIMAL(18,2)",
                 "description": measure.get("description") or measure.get("name", ""),
                 "aggregation": measure.get("aggregation") or "SUM",
+                "measure_type": measure.get("measure_type", ""),
+                "unit": measure.get("unit", ""),
+                "is_derived": measure.get("is_derived", ""),
+                "derived_logic": measure.get("derived_logic", ""),
             })
         return result
 
