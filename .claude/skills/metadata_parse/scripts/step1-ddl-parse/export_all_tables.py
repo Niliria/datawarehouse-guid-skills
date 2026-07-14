@@ -1,9 +1,17 @@
 import yaml
 import pymysql
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 import os
 import re
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
+WORD_MAP_FILE = os.path.join(PROJECT_ROOT, 'input/metadata_parse', 'word_map_reference.xlsx')
+FALLBACK_TRANSLATIONS_FILE = os.path.join(PROJECT_ROOT, 'input/metadata_parse', 'fallback_translations.xlsx')
+
+COL_FIELD_NAME = 6
+COL_COMMENT_FILL = 8
+COL_AI_COMMENT = 9
 
 
 def get_db_connection(config_name):
@@ -211,37 +219,54 @@ def load_word_map():
     从Excel参考文档加载词汇映射
     
     Returns:
-        dict: 词汇映射字典
+        tuple: (词汇映射字典, 所有词汇集合)
     """
-    from openpyxl import load_workbook
-    import os
-
-    # 构建词汇映射文件路径（项目根目录）
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
-    word_map_file = os.path.join(project_root, 'input/metadata_parse', 'word_map_reference.xlsx')
-
     word_map = {}
+    all_words = set()
 
     try:
-        # 加载Excel文件
-        wb = load_workbook(word_map_file)
+        wb = load_workbook(WORD_MAP_FILE)
         ws = wb.active
 
-        # 从第二行开始读取数据（第一行是表头）
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if row[0] and row[1]:  # 确保英文词汇和中文翻译都不为空
-                word_map[row[0].lower()] = row[1]
+            if row[0]:
+                all_words.add(row[0].lower())
+                if row[1]:
+                    word_map[row[0].lower()] = row[1]
 
     except Exception as e:
-        # 如果文件不存在或读取失败，使用默认词汇映射
         print(f"警告: 无法加载词汇映射文件，使用默认映射: {e}")
         word_map = {
             'id': 'ID',
             'name': '名称',
             'code': '代码'
         }
+        all_words = set(word_map.keys())
 
-    return word_map
+    return word_map, all_words
+
+
+def load_fallback_translations():
+    """
+    从外部文件加载备用翻译词库
+    
+    Returns:
+        dict: 备用翻译字典
+    """
+    fallback = {}
+
+    try:
+        wb = load_workbook(FALLBACK_TRANSLATIONS_FILE)
+        ws = wb.active
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row[0] and row[1]:
+                fallback[row[0].lower()] = row[1]
+
+    except Exception as e:
+        print(f"警告: 无法加载备用翻译文件: {e}")
+
+    return fallback
 
 
 def translate_field_name(field_name):
@@ -255,7 +280,7 @@ def translate_field_name(field_name):
         str: 翻译后的中文名称
     """
     # 加载词汇映射
-    word_map = load_word_map()
+    word_map, _ = load_word_map()
 
     # 拆解字段名
     parts = split_field_name(field_name)
@@ -271,6 +296,270 @@ def translate_field_name(field_name):
 
     # 组合翻译结果
     return ''.join(translated_parts)
+
+
+UNKNOWN_WORDS = set()
+
+
+def _should_collect_unknown_word(word):
+    """
+    判断是否应该收集未翻译词汇
+    
+    Args:
+        word (str): 待判断的词汇
+        
+    Returns:
+        bool: 是否应该收集
+    """
+    if not word:
+        return False
+    if len(word) <= 2:
+        return False
+    if word.isdigit():
+        return False
+    if word.lower() == word.upper():
+        return False
+    if not word.isalpha():
+        return False
+    
+    vowels = {'a', 'e', 'i', 'o', 'u'}
+    lower_word = word.lower()
+    vowel_count = sum(1 for c in lower_word if c in vowels)
+    vowel_ratio = vowel_count / len(lower_word) if len(lower_word) > 0 else 0
+    
+    if vowel_ratio < 0.2:
+        return False
+    
+    if len(word) >= 3 and word.isupper():
+        return False
+    
+    consecutive_same = 0
+    for i in range(1, len(word)):
+        if word[i] == word[i-1]:
+            consecutive_same += 1
+            if consecutive_same >= 2:
+                return False
+        else:
+            consecutive_same = 0
+    
+    return True
+
+
+def smart_translate_field_name(field_name, word_map, all_words=None, table_name=None, data_type=None, field_role=None):
+    """
+    智能翻译字段名为中文，考虑上下文联系和释义增强
+    
+    Args:
+        field_name (str): 字段名
+        word_map (dict): 词汇映射字典（预加载）
+        all_words (set): 词库中所有词汇集合（用于去重）
+        table_name (str): 表名（上下文）
+        data_type (str): 数据类型（上下文）
+        field_role (str): 字段角色（上下文）
+        
+    Returns:
+        str: 智能翻译后的中文名称
+    """
+    if all_words is None:
+        all_words = set(word_map.keys())
+    
+    parts = split_field_name(field_name)
+
+    table_translated = ""
+    if table_name:
+        table_parts = split_field_name(table_name)
+        table_translated_parts = []
+        for tp in table_parts:
+            if tp in word_map:
+                table_translated_parts.append(word_map[tp])
+            else:
+                table_translated_parts.append(tp)
+                if tp.lower() not in all_words and _should_collect_unknown_word(tp):
+                    UNKNOWN_WORDS.add(tp)
+        table_translated = ''.join(table_translated_parts)
+
+    translated_parts = []
+    for part in parts:
+        if part in word_map:
+            translated_parts.append(word_map[part])
+        else:
+            translated_parts.append(part)
+            if part.lower() not in all_words and _should_collect_unknown_word(part):
+                UNKNOWN_WORDS.add(part)
+
+    if len(parts) == 1 and parts[0] == 'id':
+        if table_translated:
+            return f"{table_translated}{word_map.get('id', 'id')}"
+        return word_map.get('id', 'id')
+
+    result = ''.join(translated_parts)
+
+    if field_role:
+        role_translation = word_map.get(field_role, field_role)
+        if role_translation != field_role:
+            result += f"({role_translation})"
+
+    return result
+
+
+def export_unknown_words(output_dir, word_map=None):
+    """
+    导出未翻译的词汇到文件，并追加到词库Excel中
+    
+    Args:
+        output_dir (str): 输出目录
+        word_map (dict): 词汇映射字典（用于模糊匹配翻译）
+    """
+    import os
+    if not UNKNOWN_WORDS:
+        return
+    
+    unknown_words_file = os.path.join(output_dir, 'unknown_words.txt')
+    with open(unknown_words_file, 'w', encoding='utf-8') as f:
+        f.write("# 未翻译词汇清单\n")
+        f.write("# 格式: 英文词汇\t中文翻译\n")
+        f.write("\n")
+        for word in sorted(UNKNOWN_WORDS):
+            f.write(f"{word}\t\n")
+    
+    appended_count = append_unknown_words_to_word_map(word_map)
+    
+    print(f"✅ 未翻译词汇已导出到: {unknown_words_file}")
+    if appended_count > 0:
+        print(f"✅ 已向词库追加 {appended_count} 个新词")
+
+
+def _guess_translation_from_word_map(word, word_map):
+    """
+    从现有词库中模糊匹配猜测中文翻译
+    
+    Args:
+        word (str): 待翻译的英文词汇
+        word_map (dict): 词汇映射字典
+        
+    Returns:
+        str: 猜测的中文翻译，未找到返回None
+    """
+    word_lower = word.lower()
+    
+    for key, value in word_map.items():
+        if word_lower == key:
+            return value
+        if word_lower in key:
+            parts = key.split('_')
+            for part in parts:
+                if part == word_lower:
+                    index = parts.index(part)
+                    value_str = str(value)
+                    if index < len(parts) - 1:
+                        suffix = parts[-1]
+                        suffix_trans = word_map.get(suffix, '')
+                        if suffix_trans and suffix_trans in value_str:
+                            return value_str.replace(suffix_trans, '')
+                    return value
+    
+    return None
+
+
+def _translate_online(word, fallback_translations=None):
+    """
+    使用在线翻译API获取中文翻译
+    
+    Args:
+        word (str): 待翻译的英文词汇
+        fallback_translations (dict): 备用翻译字典
+        
+    Returns:
+        str: 中文翻译，失败返回None
+    """
+    word_lower = word.lower()
+    
+    if fallback_translations and word_lower in fallback_translations:
+        return fallback_translations[word_lower]
+    
+    try:
+        from googletrans import Translator
+        translator = Translator()
+        result = translator.translate(word, dest='zh-cn')
+        if result and result.text:
+            return result.text
+    except Exception:
+        pass
+    
+    try:
+        import translate
+        t = translate.Translator(to_lang="zh")
+        result = t.translate(word)
+        if result:
+            return result
+    except Exception:
+        pass
+    
+    return None
+
+
+def append_unknown_words_to_word_map(word_map=None):
+    """
+    将未翻译词汇追加到词库Excel文件中（去重），并尝试自动翻译
+    
+    Args:
+        word_map (dict): 词汇映射字典（用于模糊匹配）
+        
+    Returns:
+        int: 追加的词汇数量
+    """
+    if not UNKNOWN_WORDS:
+        return 0
+    
+    if word_map is None:
+        word_map, _ = load_word_map()
+    
+    fallback_translations = load_fallback_translations()
+    
+    try:
+        wb = load_workbook(WORD_MAP_FILE)
+        ws = wb.active
+        
+        existing_words = set()
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row[0]:
+                existing_words.add(row[0].lower())
+        
+        appended_count = 0
+        guessed_count = 0
+        translated_count = 0
+        
+        for word in sorted(UNKNOWN_WORDS):
+            word_lower = word.lower()
+            if word_lower not in existing_words:
+                translation = _guess_translation_from_word_map(word, word_map)
+                
+                if translation:
+                    guessed_count += 1
+                else:
+                    translation = _translate_online(word, fallback_translations)
+                    if translation:
+                        translated_count += 1
+                
+                ws.append([word, translation or ''])
+                appended_count += 1
+                existing_words.add(word_lower)
+        
+        if appended_count > 0:
+            wb.save(WORD_MAP_FILE)
+        
+        if guessed_count > 0:
+            print(f"  └─ 通过词库匹配翻译: {guessed_count} 个")
+        if translated_count > 0:
+            print(f"  └─ 通过在线翻译: {translated_count} 个")
+        if appended_count > guessed_count + translated_count:
+            print(f"  └─ 未翻译（需手动补充）: {appended_count - guessed_count - translated_count} 个")
+        
+        return appended_count
+    
+    except Exception as e:
+        print(f"警告: 无法追加词汇到词库文件: {e}")
+        return 0
 
 
 def get_table_chinese_name(connection, table_name):
@@ -547,7 +836,7 @@ def export_to_single_sheet(metadata_list, output_path, db_type, db_name):
     ws.title = "所有表元数据"
 
     # 定义表头
-    headers = ["数据源类型", "业务数据库名称", "表名", "表中文名", "表行数", "字段名", "字段注释", "字段注释填充", "数据类型", "是否为空", "默认值", "主键", "外键", "外键引用", "字段空值率", "字段角色"]
+    headers = ["数据源类型", "业务数据库名称", "表名", "表中文名", "表行数", "字段名", "字段注释", "字段注释填充", "字段注释AI推荐", "数据类型", "是否为空", "默认值", "主键", "外键", "外键引用", "字段空值率", "字段角色"]
 
     # 添加表头
     ws.append(headers)
@@ -580,6 +869,7 @@ def export_to_single_sheet(metadata_list, output_path, db_type, db_name):
             item['field'],
             item['comment'],
             item['comment_fill'],
+            item.get('ai_comment', ""),
             item['type'],
             item['null'],
             item['default'] if item['default'] is not None else "",
@@ -591,7 +881,7 @@ def export_to_single_sheet(metadata_list, output_path, db_type, db_name):
         ])
 
     # 调整列宽
-    column_widths = [12, 20, 35, 25, 10, 25, 30, 30, 20, 10, 15, 8, 8, 30, 12, 15]
+    column_widths = [12, 20, 35, 25, 10, 25, 30, 30, 30, 20, 10, 15, 8, 8, 30, 12, 15]
     for idx, width in enumerate(column_widths, 1):
         ws.column_dimensions[chr(64 + idx)].width = width
 
@@ -627,6 +917,11 @@ def main():
         tables = get_all_tables(connection)
         print(f"✅ 找到 {len(tables)} 个表")
 
+        # 预加载词汇映射
+        print("正在加载词汇映射...")
+        word_map, all_words = load_word_map()
+        print(f"✅ 加载了 {len(word_map)} 个词汇映射")
+
         # 获取每个表的元数据
         print("正在获取表元数据...")
         metadata_list = []
@@ -660,6 +955,8 @@ def main():
                 field_role = determine_field_role(
                     field_name, column['Type'], is_primary, is_foreign, foreign_key_ref, stats
                 )
+                # 计算字段注释AI推荐（智能翻译，考虑上下文）
+                ai_comment = smart_translate_field_name(field_name, word_map, all_words, table, column['Type'], field_role)
 
                 # 添加到元数据列表
                 metadata_list.append({
@@ -669,6 +966,7 @@ def main():
                     'field': field_name,
                     'comment': comment,
                     'comment_fill': comment_fill,
+                    'ai_comment': ai_comment,
                     'type': column['Type'],
                     'null': column['Null'],
                     'default': column['Default'],
@@ -683,6 +981,9 @@ def main():
         # 导出到Excel
         print("正在导出到Excel...")
         export_to_single_sheet(metadata_list, output_file, db_type, db_name)
+
+        # 导出未翻译词汇清单
+        export_unknown_words(os.path.dirname(output_file), word_map)
 
         print("\n🎉 操作完成!")
 
